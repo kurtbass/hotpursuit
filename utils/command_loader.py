@@ -1,0 +1,45 @@
+import os
+import logging
+from colorama import Fore, Style
+from commands.music.musicsystem.music_system import MusicManager as music_manager # Importa o music_manager global
+
+logger = logging.getLogger(__name__)
+
+async def load_commands(bot):
+    """
+    Carrega comandos do bot a partir da pasta 'commands' e 'commands/music'.
+    """
+    base_path = "./commands"
+    logger.info(f"{Fore.CYAN}Verificando a pasta de comandos: {base_path}{Style.RESET_ALL}")
+
+    if not os.path.exists(base_path):
+        logger.warning(f"{Fore.RED}Pasta '{base_path}' não encontrada. Nenhum comando será carregado.{Style.RESET_ALL}")
+        return
+
+    # Carregar comandos da pasta base (commands)
+    for filename in os.listdir(base_path):
+        if filename.endswith(".py") and not filename.startswith("__"):
+            command_name = filename[:-3]
+            try:
+                await bot.load_extension(f"commands.{command_name}")
+                logger.info(f"{Fore.GREEN}Comando 'commands.{command_name}' carregado com sucesso.{Style.RESET_ALL}")
+            except Exception as e:
+                logger.error(f"{Fore.RED}Falha ao carregar o comando 'commands.{command_name}': {e}{Style.RESET_ALL}")
+
+    # Verificar e carregar comandos da subpasta 'music'
+    music_path = os.path.join(base_path, "music")
+    if os.path.exists(music_path):
+        for filename in os.listdir(music_path):
+            if filename.endswith(".py") and not filename.startswith("__"):
+                command_name = filename[:-3]
+                try:
+                    module = __import__(f"commands.music.{command_name}", fromlist=["setup"])
+                    if hasattr(module, "setup"):
+                        await module.setup(bot, music_manager)
+                        logger.info(f"{Fore.GREEN}Comando 'commands.music.{command_name}' carregado com sucesso.{Style.RESET_ALL}")
+                    else:
+                        logger.error(f"{Fore.RED}Comando 'commands.music.{command_name}' não possui função 'setup'.{Style.RESET_ALL}")
+                except Exception as e:
+                    logger.error(f"{Fore.RED}Falha ao carregar o comando 'commands.music.{command_name}': {e}{Style.RESET_ALL}")
+    else:
+        logger.warning(f"{Fore.RED}Subpasta 'music' não encontrada em '{base_path}'. Nenhum comando será carregado.{Style.RESET_ALL}")

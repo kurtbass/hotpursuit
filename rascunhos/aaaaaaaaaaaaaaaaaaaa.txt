@@ -1,0 +1,239 @@
+Em meu projeto, será em commands/recrutamento.py
+
+Todas as perguntas e interações serao em embed FF8000
+Por isso irei enviar um sistema de TItulo para o titulo da embed e o conteudo nas Perguntas:
+db: será a coluna da tabela "formularios" na db
+Vou deixar a estrutura da tabela "fformularios" para voce entender.
+
+Estrutura:
+
+PRAGMA foreign_keys = 0;
+
+CREATE TABLE sqlitestudio_temp_table AS SELECT *
+                                          FROM formularios;
+
+DROP TABLE formularios;
+
+CREATE TABLE formularios (
+    idform           INTEGER PRIMARY KEY AUTOINCREMENT,
+    idrecrutador     NUMERIC,
+    idrecruta        NUMERIC,
+    nomecompleto     TEXT,
+    nick             TEXT,
+    idade            NUMERIC,
+    datadenascimento TEXT,
+    cidadedogame     TEXT,
+    porqueaceitar    TEXT,
+    horario          TEXT,
+    pcd              TEXT,
+    pcdinfo          TEXT,
+    indicacaostatus  TEXT,
+    nickindicador    TEXT,
+    discord          TEXT,
+    rg               BLOB,
+    termos           TEXT,
+    aprovacaostatus  NUMERIC,
+    motivo           TEXT,
+    dataehorario     TEXT
+);
+
+INSERT INTO formularios (
+                            idform,
+                            idrecrutador,
+                            idrecruta,
+                            nomecompleto,
+                            nick,
+                            idade,
+                            datadenascimento,
+                            cidadedogame,
+                            porqueaceitar,
+                            horario,
+                            pcd,
+                            pcdinfo,
+                            indicacaostatus,
+                            nickindicador,
+                            discord,
+                            rg,
+                            termos,
+                            aprovacaostatus,
+                            motivo,
+                            dataehorario
+                        )
+                        SELECT idform,
+                               idrecrutador,
+                               idrecruta,
+                               nomecompleto,
+                               nick,
+                               idade,
+                               datadenascimento,
+                               cidadedogame,
+                               porqueaceitar,
+                               horario,
+                               pcd,
+                               pcdinfo,
+                               indicacaostatus,
+                               nickindicador,
+                               discord,
+                               rg,
+                               termos,
+                               aprovacaostatus,
+                               motivo,
+                               dataehorario
+                          FROM sqlitestudio_temp_table;
+
+DROP TABLE sqlitestudio_temp_table;
+
+PRAGMA foreign_keys = 1;
+
+Regras: Será definida por pergunta, quanto nao houver Regras na pergunta, siga o fluxo normal.
+
+
+Título: Início do processo de recrutamento NOME_DO_CLA.
+Descrição: Personalizada com as menções ao recrutado e recrutador.
+Regra de Resposta:
+Sim: O processo de recrutamento continua.
+Não:
+O recrutador será notificado via DM de que o recrutado recusou.
+O formulário será encerrado.
+Implementado
+Lema adicionado ao rodapé do embed.
+Se o recrutado disser "Sim", o processo continua.
+Se o recrutado disser "Não", notifica o recrutador e encerra o formulário.
+
+
+PROXIMA PERGUNTA
+
+Título: Nome real completo
+Pergunta: Caso você use um nome social, coloque o seu nome **REAL** e **COMPLETO** que contém em seus documentos e no final acrescente um **(S)**. 
+Lembrando que o seu nome social __**NÃO É** o seu personagem__ ou canal de streaming! 
+Caso você tenha dúvida sobre o que é um nome social, Clique aqui( https://pt.wikipedia.org/wiki/Nome_social )
+db: nomecompleto
+
+PROXIMA PERGUNTA
+
+Título: Nick in Game
+Pergunta: Informe o nick que você usa no jogo.
+db: nick
+
+Título: Idade 
+Pergunta: Quantos anos você tem? (Apenas números)
+db: idade
+Regra: Nessa etapa apenas números serão aceitos, caso o recruta digite letras ou quaisquer simbolos que não seja numero, voce ira informar que apenas numeros são aceitos e ira refazer a pergunta para que o recruta tenha a chance de responder corretamente.
+
+PROXIMA PERGUNTA
+
+TItulo: Data de nascimento
+Pergunta: Digite a sua data de nascimento. (Exemplo: dd/mm/aaaa)
+Respostas aleatórias não serão aceitas.
+db: datadenascimento
+Regras: Certifique-se que apenas respostas nesse formato serão aceitas, dd/mm/aaaa, por exemplo, 15/01/1975.
+
+
+PROXIMA PERGUNTA
+
+TItulo: Cidade In Game
+Pergunta: De qual cidade você é In Game?
+1 - Cidade Vida Real [SAMP CVR]
+db: cidadedogame
+Regras: Na db, o nome da cidade será gravada, no caso, se o usuario responder 1, será gravado Cidade Vida Real [SAMP CVR]
+
+Titulo: Por que você acredita que a NOME_DO_CLA deveria aceitar você como nosso membro?
+Pergunta: Respostas aleatórias não serão consideradas e seu formulário poderá não ser aceito.
+db: porqueaceitar
+Regras: 
+
+PROXIMA PERGUNTA
+
+TItulo: Qual horário você pretende jogar com a gente? 
+ Pergunta:
+1 - Manhã (Até 12:00) 
+2 - Tarde (Até 18:00) 
+3 - Noite (Até 00:00) 
+4 - Madrugada (Até 05:00)
+db: horario
+Regras: Na db, será gravada a resposta em si, não o número, como na outra.
+
+PROXIMA PERGUNTA
+
+TItulo: Você é PCD?
+Pergunta: Pessoa com deficiência, e se refere a quem possui uma deficiência duradoura, de natureza física, mental, intelectual ou sensorial.
+1 - Sim
+2 - Não
+db: pcd
+Regras: 1 para sim e 2 para não, na db será armazenada Sim ou Não. Se o usuário responder 1, a proxima pergunta será feita, se digitar 2, a próxima pergunta que será feita será pulada, pios vai pedir que descreva.
+
+PROXIMA PERGUNTA
+
+TItulo: Você confirmou que é PCD.
+Pergunta: Descreva sua deficiência. 
+db: pcdinfo
+Regras: Como mencionado anteriormente, essa pergunta só será feita se a resposta para a pergunta anterior for positiva, se a resposta para a pergunta anterior for negativa, essa pergunta atual não será feita.
+
+PROXIMA PERGUNTA
+
+TItulo: Você foi indicado por alguém?
+Pergunta: 1 - Sim
+2 - Não
+db: indicacaostatus
+Regras: Como na outra, se responder sim, a proxima pergunta sera feita, se responder nao, a proxima pergunta sera pulada, pois a proxima pergunta sera perguntado sobre o nick de quem indicou.
+
+PROXIMA PERGUNTA
+
+TItulo: Informações sobre indicação
+Pergunta: Informe o nick te quem te indicou.
+db: nickindicador
+Regras: Essa pergunta só será feita caso a pergunta anterior tenha sido positiva, se for negativa, essa pergunta atual será pulada.
+
+PROXIMA PERGUNTA
+
+TItulo: Informe seu Discord
+Pergunta: Digite o seu nome de usuário do Discord.
+db: discord
+
+
+PROXIMA PERGUNTA
+
+
+TItulo: Envie seu RG in game
+Pergunta: Comando: **/rg** 
+Envie o arquivo de imagem contendo a print do seu comando de RG ou envie o link de imagem.
+db: rg
+Regras: A imagem deve ser fornecida através de link ou arquivo, a imagem será armazenada na db.
+
+
+
+PROXIMA PERGUNTA
+
+
+
+TItulo: Sobre a allowlist
+Pergunta: **1.** Declaro que sou maior de 15 anos e que sou responsável por todas as minhas ações dentro dos servidores, estando sujeito a receber as devidas tratativas e punições por qualquer quebra de conduta, moral, leis constitucionais e/ou regras de servidores. 
+**2.** Declaro ter ciência que minha conta in game é única e intransferível, sendo assim, nenhum terceiro poderá ter acesso à mesma.
+
+**Você aceita os termos acima? (Sim/Não)**
+db: termos
+Regras: Irá armazenar Sim ou Não.
+
+
+No final o bot irá enviar o resumo de todas as perguntas: 
+
+TItulo: Resumo do seu formulário
+
+**A pergunta aqui?**
+**R:** A resposta aqui
+**A pergunta aqui?**
+**R:** A resposta aqui
+**A pergunta aqui?**
+**R:** A resposta aqui
+
+Banner: o arquivo de imagem que o usuario enviou na pergunta do rg.
+
+db: idform - segue a lógica 1,2,3,4,5,6,7,8,9;;;
+idrecrutador - id do recrutador
+idrecruta - id do recrutado que respondeu o formulário
+aprovacaostatus - deixar 0, pois iremos tratar como 1 aprovado e 2 nao aprovado.
+motivo - motivo por ter sido aprovado, caso nao tenha sido aprovado.
+dataehorario -gravar a data dd/mm/aaaa e horário HHhMM que o formulário foi finalizado.
+
+Regras: O bot irá perguntar ao recruta se tudo está correto, se não estiver, o processo de formulario começará desde o inicio, garanta que as informações sejam gravadas na db apenas no momento que o formulário é finalizado. Caso não seja possivel gravar as respostas em cache, certifique que caso o usuario opte por editar as respostas, nenhum resquicio esteja na db para nao haver dados corrompidos ou que as perguntas sejam respondidas na mesma linha que foi criada, ou seja, uma nova linha nao será criada caso o usuario opte por corrihir o formulario, a linha será editada, uma novalinha será criada apenas se um novo formulario com um usuario diferente for iniciado.
+

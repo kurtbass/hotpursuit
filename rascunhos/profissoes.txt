@@ -1,0 +1,59 @@
+Máfia:
+Plantador de Maconha: Nível 20
+Vendedor de Drogas: Nível 30
+Produtor de Drogas: Nível 40
+Ladrão de Veículos: Nível 50
+Vendedor de Armas: Nível 60
+Contrabandista Náutico: Nível 100
+Contrabandista Aéreo: Nível 150
+Assassino: Nível 200
+Assaltante: Nível 300
+Terrorista: Nível 1100
+Chefão da Máfia: Nível 2000
+
+Profissões Honestas:
+Entregador de Jornal: Nível 0
+Gari: Nível 0
+PizzaBoy: Nível 0
+Vendedor de Rua: Nível 2
+Operador de Empilhadeira: Nível 4
+MotoBoy: Nível 10
+Lenhador: Nível 15
+Pescador: Nível 20
+Correios: Nível 25
+Agente Funerário: Nível 30
+Fazendeiro: Nível 35
+Mecânico: Nível 40
+Eletricista: Nível 50
+Meteorologista: Nível 60
+Processador de Petróleo: Nível 80
+Advogado: Nível 100
+Paramédico: Nível 150
+
+Profissões de Transporte:
+Transportador: Nível 3
+Motorista de Betoneira: Nível 5
+Motorista de Ônibus: Nível 7
+Caminhoneiro: Nível 9
+Taxista: Nível 12
+Maquinista: Nível 15
+Motorista de Carro Forte: Nível 85
+Piloto: Nível 200
+
+Profissões do Governo:
+Bombeiro: Nível 200
+Marinha: Nível 1300
+Exército: Nível 1500
+Aeronáutica: Nível 1700
+Corregedoria: Nível 2000
+
+Profissões da Polícia:
+Segurança de Carro Forte: Nível 90
+Guarda Civil Metropolitana: Nível 100
+Polícia Penal: Nível 200
+Polícia Militar: Nível 300
+Polícia Civil: Nível 400
+Delegado: Nível 500
+Polícia Rodoviária Estadual: Nível 600
+Polícia Rodoviária Federal: Nível 700
+Polícia Federal: Nível 800
