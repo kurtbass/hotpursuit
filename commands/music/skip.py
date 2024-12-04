@@ -49,33 +49,32 @@ class SkipCommand(commands.Cog):
             ))
             return
 
-        # Obter próxima música
-        next_song = self.music_manager.get_next_song()
+        try:
+            # Pular para a próxima música
+            next_song = self.music_manager.get_next_song()
+            if next_song:
+                self.music_manager.save_current_to_history()  # Salvar a música atual no histórico
+                self.music_manager.set_current_song(next_song)  # Atualizar a música atual
 
-        if next_song:
-            try:
-                # Salvar a música atual como anterior (caso necessário para voltar)
-                self.music_manager.save_current_to_history()
+                # Resolver `stream_url` caso ainda não esteja resolvido
+                self.music_manager.resolve_stream_url(next_song)
 
-                # Formatar duração da próxima música
-                duration_seconds = next_song.get('duration', 0)
-                duration_formatted = f"{duration_seconds // 60}:{duration_seconds % 60:02d}" if duration_seconds else "Desconhecida"
-
-                # Reproduzir próxima música com ajuste de volume
+                # Configurar e tocar a próxima música
                 source = discord.PCMVolumeTransformer(
-                    discord.FFmpegPCMAudio(next_song.get('stream_url', ''), **{
+                    discord.FFmpegPCMAudio(next_song['stream_url'], **{
                         'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5',
                         'options': '-vn'
                     }),
-                    volume=self.music_manager.volume  # Ajustar para o volume atual do usuário
+                    volume=self.music_manager.volume  # Ajustar volume atual
                 )
-                self.music_manager.current_song = next_song  # Atualizar a música atual
                 voice_client.stop()
-                voice_client.play(source, after=lambda e: asyncio.run_coroutine_threadsafe(
-                    self.music_manager.play_next(), self.bot.loop
+                voice_client.play(source, after=lambda e: self.bot.loop.call_soon_threadsafe(
+                    self.music_manager.play_next, voice_client
                 ))
 
-                # Enviar informações da próxima música
+                # Informar sobre a próxima música
+                duration_seconds = next_song.get('duration', 0)
+                duration_formatted = f"{duration_seconds // 60}:{duration_seconds % 60:02d}" if duration_seconds else "Desconhecida"
                 embed = self.create_embed(
                     title="⏭️ Música Pulada",
                     description=(f"**Agora Tocando:** [{next_song.get('title', 'Desconhecida')}]({next_song.get('url', '')})\n"
@@ -85,20 +84,20 @@ class SkipCommand(commands.Cog):
                     banner=next_song.get('thumbnail')
                 )
                 await ctx.send(embed=embed)
-
-            except Exception as e:
-                logger.error(f"Erro ao reproduzir a próxima música: {e}")
+            else:
+                # Fila vazia
+                if self.music_manager.current_song:
+                    self.music_manager.save_current_to_history()  # Salvar música atual no histórico
+                    self.music_manager.current_song = None
+                voice_client.stop()
                 await ctx.send(embed=self.create_embed(
-                    "Erro", "⚠️ Ocorreu um erro ao tentar reproduzir a próxima música.", 0xFF0000
+                    "Fila Vazia", "⚠️ Não há músicas na fila para reproduzir após esta.", 0xFF8000
                 ))
-        else:
-            # Caso não haja próximas músicas na fila, mas ainda há uma atual
-            if self.music_manager.current_song:
-                self.music_manager.save_current_to_history()  # Salvar a música atual como anterior
-                self.music_manager.current_song = None
-            voice_client.stop()
+
+        except Exception as e:
+            logger.error(f"Erro ao tentar pular para a próxima música: {e}")
             await ctx.send(embed=self.create_embed(
-                "Fila Vazia", "⚠️ Não há músicas na fila para reproduzir após esta.", 0xFF8000
+                "Erro", "⚠️ Ocorreu um erro ao tentar reproduzir a próxima música.", 0xFF0000
             ))
 
 

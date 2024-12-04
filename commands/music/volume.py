@@ -1,6 +1,6 @@
 import discord
 from discord.ext import commands
-from utils.database import set_user_volume  # Função para salvar volume no banco de dados
+from utils.database import set_user_volume, get_user_volume  # Funções de banco de dados
 
 class VolumeCommand(commands.Cog):
     """
@@ -19,8 +19,10 @@ class VolumeCommand(commands.Cog):
         :param ctx: Contexto do comando.
         :param volume: Volume desejado (0 a 100). Se não for informado, exibe o volume atual.
         """
+        voice_client = self.music_manager.voice_client
+
         # Verificar se há conexão de voz
-        if not self.music_manager.voice_client or not self.music_manager.voice_client.is_connected():
+        if not voice_client or not voice_client.is_connected():
             await ctx.send(embed=discord.Embed(
                 title="Erro",
                 description="⚠️ O bot não está conectado a nenhum canal de voz.",
@@ -47,20 +49,14 @@ class VolumeCommand(commands.Cog):
             ))
             return
 
-        # Verificar se o ajuste de volume é suportado
-        if not self.music_manager.voice_client.source or not hasattr(self.music_manager.voice_client.source, "volume"):
-            await ctx.send(embed=discord.Embed(
-                title="Erro",
-                description="⚠️ O ajuste de volume não é suportado para a fonte atual.",
-                color=0xFF0000
-            ))
-            return
+        # Ajustar o volume no player se possível
+        if voice_client.source and hasattr(voice_client.source, "volume"):
+            voice_client.source.volume = volume / 100
 
-        # Ajustar o volume no player
-        self.music_manager.voice_client.source.volume = volume / 100
+        # Atualizar o volume no gerenciador de música
         self.music_manager.volume = volume / 100
 
-        # Salvar o volume no banco de dados para o usuário
+        # Salvar o volume no banco de dados
         set_user_volume(ctx.author.id, volume)
 
         # Confirmar ajuste para o usuário
@@ -69,6 +65,21 @@ class VolumeCommand(commands.Cog):
             description=f"O volume foi ajustado para **{volume}%**.",
             color=0xFF8000
         ))
+
+    @commands.Cog.listener()
+    async def on_voice_state_update(self, member, before, after):
+        """
+        Recupera o volume padrão do usuário ao entrar no canal.
+        """
+        if member.bot or not after.channel:
+            return
+
+        # Recuperar volume salvo para o usuário
+        saved_volume = get_user_volume(member.id)
+        if saved_volume is not None and self.music_manager.voice_client:
+            self.music_manager.volume = saved_volume / 100
+            if self.music_manager.voice_client.source and hasattr(self.music_manager.voice_client.source, "volume"):
+                self.music_manager.voice_client.source.volume = saved_volume / 100
 
 
 async def setup(bot, music_manager):

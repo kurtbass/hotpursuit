@@ -14,52 +14,58 @@ class PauseCommand(commands.Cog):
     def __init__(self, bot, music_manager):
         """
         Inicializa o comando de pausa.
-        Passa o bot e o MusicManager que gerencia as músicas do sistema.
         """
         self.bot = bot
-        self.music_manager = music_manager  # Armazenando a instância do MusicManager
+        self.music_manager = music_manager
 
-    @commands.command(name="pause", aliases=["pausar"])  # Definindo o comando 'pause' com alias 'pausar'
+    @commands.command(name="pause", aliases=["pausar"])
     async def pause(self, ctx):
         """
         Pausa a música atual.
 
         :param ctx: Contexto do comando.
         """
-        voice_client = self.music_manager.voice_client  # Obtém o voice client da música manager
+        voice_client = self.music_manager.voice_client
 
+        # Verifica se o bot está conectado a um canal de voz
         if voice_client is None or not voice_client.is_connected():
-            # Verifica se o bot não está no canal de voz
             await ctx.send(embed=self.music_manager.create_embed(
-                "Erro", "⚠️ O bot não está conectado a nenhum canal de voz.", 0xFF0000  # Cor do erro
+                "Erro", "⚠️ O bot não está conectado a nenhum canal de voz.", 0xFF0000
             ))
-            return  # Retorna se o bot não estiver conectado a um canal de voz
+            return
 
+        # Verifica se o usuário está no mesmo canal do bot
         if not ctx.author.voice or ctx.author.voice.channel != voice_client.channel:
-            # Verifica se o usuário está no mesmo canal de voz do bot
             await ctx.send(embed=self.music_manager.create_embed(
-                "Erro", "⚠️ Você precisa estar no mesmo canal de voz do bot para usar este comando.", 0xFF0000  # Cor do erro
+                "Erro", "⚠️ Você precisa estar no mesmo canal de voz do bot para usar este comando.", 0xFF0000
             ))
-            return  # Retorna se o usuário não estiver no mesmo canal
+            return
 
+        # Verifica se há uma música tocando
         if not voice_client.is_playing():
-            # Verifica se o bot está tocando uma música
             await ctx.send(embed=self.music_manager.create_embed(
-                "Erro", "⚠️ Nenhuma música está tocando para pausar.", 0xFF0000  # Cor do erro
+                "Erro", "⚠️ Nenhuma música está tocando para pausar.", 0xFF0000
             ))
-            return  # Retorna se não estiver tocando música
+            return
 
         try:
-            voice_client.pause()  # Pausa a música
+            # Pausa a música e atualiza o estado no MusicManager
+            voice_client.pause()
+            current_song = self.music_manager.current_song
+            song_title = current_song.get('title', 'Desconhecida') if current_song else 'Desconhecida'
+
+            # Envia mensagem de confirmação
             await ctx.send(embed=self.music_manager.create_embed(
-                "Música Pausada", f"⏸️ A música atual foi pausada. {get_config('LEMA')}", 0xFF8000  # Cor do sucesso
+                "Música Pausada",
+                f"⏸️ A música **{song_title}** foi pausada.\n{get_config('LEMA')}",
+                0xFF8000
             ))
-            logger.info("Música pausada com sucesso.")
+            logger.info(f"Música pausada com sucesso: {song_title}")
+
         except Exception as e:
-            # Log de erro e envio de mensagem caso algo dê errado
             logger.error(f"Erro ao tentar pausar a música: {e}")
             await ctx.send(embed=self.music_manager.create_embed(
-                "Erro", f"⚠️ Ocorreu um erro ao tentar pausar a música. {str(e)}", 0xFF0000  # Cor do erro
+                "Erro", f"⚠️ Ocorreu um erro ao tentar pausar a música: {str(e)}", 0xFF0000
             ))
 
 
@@ -70,4 +76,4 @@ async def setup(bot, music_manager):
     :param bot: O bot do Discord.
     :param music_manager: O gerenciador de música compartilhado.
     """
-    await bot.add_cog(PauseCommand(bot, music_manager))  # Adiciona o cog ao bot
+    await bot.add_cog(PauseCommand(bot, music_manager))

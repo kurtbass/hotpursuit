@@ -45,9 +45,14 @@ class PreviousCommand(commands.Cog):
             if self.music_manager.current_song:
                 self.music_manager.add_to_queue(self.music_manager.current_song)
 
-            # Reproduz a música anterior
+            # Resolver `stream_url` da música anterior se necessário
+            if not previous_song.get('stream_url'):
+                self.music_manager.resolve_stream_url(previous_song)
+
+            # Atualizar a música atual para a música anterior
             self.music_manager.current_song = previous_song
 
+            # Configurar e tocar a música anterior
             source = discord.PCMVolumeTransformer(
                 discord.FFmpegPCMAudio(previous_song['stream_url'], **{
                     'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5',
@@ -57,12 +62,15 @@ class PreviousCommand(commands.Cog):
             )
 
             voice_client.stop()
-            voice_client.play(source, after=lambda e: logger.info(f"Música anterior finalizada: {previous_song['title']}"))
+            voice_client.play(source, after=lambda e: self.bot.loop.call_soon_threadsafe(
+                self.music_manager.play_next, voice_client
+            ))
 
-            # Formata a duração da música anterior
-            duration_formatted = f"{previous_song['duration'] // 60}:{previous_song['duration'] % 60:02d}"
+            # Formatar duração
+            duration_seconds = previous_song.get('duration', 0)
+            duration_formatted = f"{duration_seconds // 60}:{duration_seconds % 60:02d}" if duration_seconds else "Desconhecida"
 
-            # Envia a mensagem formatada
+            # Enviar mensagem de confirmação
             await ctx.send(embed=self.music_manager.create_embed(
                 "⏮️ Voltando para a Música Anterior",
                 description=(f"**Música:** [{previous_song['title']}]({previous_song['url']})\n"

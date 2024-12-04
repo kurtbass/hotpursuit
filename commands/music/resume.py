@@ -22,18 +22,21 @@ class ResumeCommand(commands.Cog):
         """
         voice_client = self.music_manager.voice_client
 
+        # Verificar conexão com canal de voz
         if voice_client is None or not voice_client.is_connected():
             await ctx.send(embed=self.music_manager.create_embed(
                 "Erro", "⚠️ O bot não está conectado a nenhum canal de voz.", 0xFF0000
             ))
             return
 
+        # Verificar se o usuário está no mesmo canal
         if not ctx.author.voice or ctx.author.voice.channel != voice_client.channel:
             await ctx.send(embed=self.music_manager.create_embed(
                 "Erro", "⚠️ Você precisa estar no mesmo canal de voz do bot para usar este comando.", 0xFF0000
             ))
             return
 
+        # Verificar se há música pausada
         if not voice_client.is_paused():
             await ctx.send(embed=self.music_manager.create_embed(
                 "Erro", "⚠️ Nenhuma música está pausada para retomar.", 0xFF0000
@@ -41,7 +44,9 @@ class ResumeCommand(commands.Cog):
             return
 
         try:
+            # Retomar a música
             voice_client.resume()
+            self.music_manager.current_song['status'] = 'playing'  # Atualizar o estado da música no MusicManager
             await ctx.send(embed=self.music_manager.create_embed(
                 "Música Retomada", "▶️ A música pausada foi retomada.", 0x00FF00
             ))

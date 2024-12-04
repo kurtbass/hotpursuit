@@ -37,21 +37,30 @@ class NowCommand(commands.Cog):
         try:
             # Informações da música atual
             song = self.music_manager.current_song
-            duration_formatted = f"{song['duration'] // 60}:{song['duration'] % 60:02d}"
+
+            # Formatar duração
+            duration_seconds = song.get('duration', 0)
+            duration_formatted = (
+                f"{duration_seconds // 60}:{duration_seconds % 60:02d}" if duration_seconds else "Desconhecida"
+            )
+
+            # Verificar o canal de voz
             voice_channel = self.music_manager.voice_client.channel.name if self.music_manager.voice_client else "Desconhecido"
 
-            # Cria e envia o embed com as informações
+            # Criar e enviar o embed com as informações
             embed = self.music_manager.create_embed(
                 title="🎶 Tocando Agora",
-                description=(f"**Música:** [{song['title']}]({song['url']})\n"
-                             f"**Canal do YouTube:** {song['uploader']}\n"
-                             f"**Duração:** {duration_formatted}\n"
-                             f"**Adicionado por:** {song['added_by']}\n"
-                             f"**Canal de Voz:** {voice_channel}"),
-                banner=song['thumbnail']
+                description=(
+                    f"**Música:** [{song.get('title', 'Título Desconhecido')}]({song.get('url', '#')})\n"
+                    f"**Canal do YouTube:** {song.get('uploader', 'Uploader Desconhecido')}\n"
+                    f"**Duração:** {duration_formatted}\n"
+                    f"**Adicionado por:** {song.get('added_by', 'Usuário Desconhecido')}\n"
+                    f"**Canal de Voz:** {voice_channel}"
+                ),
+                banner=song.get('thumbnail')
             )
             await ctx.send(embed=embed)
-            logger.info("Informações da música atual enviadas com sucesso.")
+            logger.info(f"Informações da música atual enviadas: {song.get('title', 'Título Desconhecido')}")
 
         except Exception as e:
             logger.error(f"Erro ao exibir informações da música atual: {e}")
