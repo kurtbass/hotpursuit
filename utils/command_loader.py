@@ -1,9 +1,12 @@
 import os
 import logging
 from colorama import Fore, Style
-from commands.music.musicsystem.music_system import MusicManager as music_manager # Importa o music_manager global
+from commands.music.musicsystem.music_system import MusicManager
 
 logger = logging.getLogger(__name__)
+
+# Inicialize o MusicManager globalmente
+music_manager = MusicManager()
 
 async def load_commands(bot):
     """
@@ -33,6 +36,7 @@ async def load_commands(bot):
             if filename.endswith(".py") and not filename.startswith("__"):
                 command_name = filename[:-3]
                 try:
+                    # Carregar módulo e chamar setup manualmente
                     module = __import__(f"commands.music.{command_name}", fromlist=["setup"])
                     if hasattr(module, "setup"):
                         await module.setup(bot, music_manager)
