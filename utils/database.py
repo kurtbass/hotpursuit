@@ -115,31 +115,19 @@ def get_restart_data() -> Tuple[int, Optional[str], Optional[str]]:
 # Novas funções para gerenciamento de volume
 
 def get_user_volume(user_id: int) -> float:
-    """
-    Obtém o volume do usuário pelo ID. Retorna 1.0 (100%) se não encontrado.
-    """
     query = "SELECT volume FROM volume WHERE user = ?"
     result = fetchone(query, (user_id,))
     if result:
-        logger.info(f"Volume carregado para o usuário {user_id}: {result[0]}")
-        return int(result[0]) / 100  # Converter de inteiro (0-100) para decimal (0.0-1.0)
-    logger.warning(f"Nenhum volume encontrado para o usuário {user_id}, usando padrão.")
-    return 1.0  # Volume padrão (100%
+        return float(result[0]) / 100
+    return 1.0  # Retorna volume padrão
 
-def set_user_volume(user_id: int, volume: int) -> None:
+def set_user_volume(user_id: int, volume: float) -> None:
+    query = """
+    INSERT INTO volume (user, volume)
+    VALUES (?, ?)
+    ON CONFLICT(user) DO UPDATE SET volume = excluded.volume
     """
-    Define ou atualiza o volume de um usuário na tabela 'volume'.
-    """
-    try:
-        query = """
-        INSERT INTO volume (user, volume)
-        VALUES (?, ?)
-        ON CONFLICT(user) DO UPDATE SET volume = excluded.volume
-        """
-        execute_query(query, (user_id, volume))
-        logger.info(f"Volume atualizado para o usuário {user_id}: {volume}%")
-    except Exception as e:
-        logger.error(f"Erro ao definir volume para o usuário {user_id}: {e}")
+    execute_query(query, (user_id, volume))
 
 def insert_formulario(nomecompleto: str, nick: str, idade: int, datadenascimento: str):
     """

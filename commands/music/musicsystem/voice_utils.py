@@ -26,11 +26,14 @@ async def join_voice_channel(ctx, music_manager):
         if music_manager.voice_client is None or not music_manager.voice_client.is_connected():
             music_manager.voice_client = await voice_channel.connect()
 
-            # Recuperar e ajustar o volume do usuário
+            # Recuperar o volume do usuário
             user_volume = get_user_volume(ctx.author.id)
-            music_manager.volume = user_volume / 100 if user_volume is not None else 1.0
+            music_manager.volume = user_volume if user_volume is not None else 1.0
+
+            # Ajustar volume caso a fonte de áudio já esteja configurada
             if music_manager.voice_client.source:
                 music_manager.voice_client.source.volume = music_manager.volume
+
             logger.info(f"Conectado ao canal de voz: {voice_channel.name}")
 
         # Se o bot está conectado, mas em um canal diferente, mover para o canal correto
@@ -38,21 +41,10 @@ async def join_voice_channel(ctx, music_manager):
             await music_manager.voice_client.move_to(voice_channel)
             logger.info(f"Movido para o canal de voz: {voice_channel.name}")
 
-        # Verificar se o bot foi desconectado manualmente e enviar mensagem de aviso
-        def check_disconnection(vc):
-            return not vc.is_connected()
-
-        if check_disconnection(music_manager.voice_client):
-            await ctx.send(embed=music_manager.create_embed(
-                "Aviso", "🔌 O bot foi desconectado do canal de voz.", 0xFFA500
-            ))
-            logger.warning("O bot foi desconectado do canal de voz.")
-            return None
-
     except discord.errors.ClientException as e:
         logger.error(f"Erro ao tentar conectar ao canal de voz: {e}")
         await ctx.send(embed=music_manager.create_embed(
-            "Erro", "⚠️ Não foi possível conectar ao canal de voz. Certifique-se de que o bot tem permissões adequadas.", 0xFF0000
+            "Erro", "⚠️ Não foi possível conectar ao canal de voz. Verifique as permissões do bot.", 0xFF0000
         ))
         return None
 

@@ -14,7 +14,6 @@ class QueueCommand(commands.Cog):
     def __init__(self, bot, music_manager):
         self.bot = bot
         self.music_manager = music_manager  # Gerenciador centralizado de músicas
-        self.session_owner = None  # Dono da sessão atual
 
     def create_embed(self, title, description, color=0xFF8000):
         """
@@ -24,15 +23,32 @@ class QueueCommand(commands.Cog):
         embed.set_footer(text="Hot Pursuit - Potência e Precisão, Sempre na Frente.")
         return embed
 
-    @commands.command(name="queue", aliases=["fila", "lista"])
-    async def queue(self, ctx, page: int = 1):
+    @commands.command(name="queue", aliases=["fila", "lista", "q"])
+    async def queue(self, ctx, *args):
         """
-        Exibe ou gerencia a fila de músicas. Suporta paginação, limpeza e encerramento.
+        Exibe ou gerencia a fila de músicas. Suporta paginação, limpeza e outras ações.
         """
         # Verifica se o autor está no mesmo canal que o bot
         if not ctx.author.voice or self.music_manager.voice_client is None or ctx.author.voice.channel != self.music_manager.voice_client.channel:
             await ctx.send(embed=self.create_embed(
                 "Erro", "⚠️ Você precisa estar no mesmo canal de voz do bot para usar este comando.", 0xFF0000
+            ))
+            return
+
+        # Subcomando: limpar fila
+        if args and args[0].lower() in ["limpar", "clear", "clean"]:
+            self.music_manager.clear_queue()
+            await ctx.send(embed=self.create_embed(
+                "Fila Limpa", "✅ A fila de músicas foi limpa com sucesso.", 0x00FF00
+            ))
+            return
+
+        # Exibição da fila com paginação
+        try:
+            page = int(args[0]) if args else 1
+        except ValueError:
+            await ctx.send(embed=self.create_embed(
+                "Erro", "⚠️ O argumento fornecido não é um número válido ou um comando reconhecido.", 0xFF0000
             ))
             return
 
