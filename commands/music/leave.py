@@ -1,13 +1,19 @@
 import discord
 from discord.ext import commands
 
+from utils.database import get_config
+
 class LeaveCommand(commands.Cog):
     """
-    Comando para desconectar o bot do canal de voz.
+    Comando para pausar a reprodução de música.
     """
 
-    def __init__(self, bot):
+    def __init__(self, bot, music_manager):
+        """
+        Inicializa o comando de pausa.
+        """
         self.bot = bot
+        self.music_manager = music_manager
 
     def create_embed(self, title, description, color=0xFF8000):
         """
@@ -17,7 +23,7 @@ class LeaveCommand(commands.Cog):
         embed.set_footer(text=get_config("LEMA"))
         return embed
 
-    @commands.command(name="leave", aliases=["sair", "desconectar"])
+    @commands.command(name="leave", aliases=["sair", "desconectar, disconnect, quit"])
     async def leave(self, ctx):
         """
         Faz o bot sair do canal de voz atual.
@@ -47,10 +53,11 @@ class LeaveCommand(commands.Cog):
         ))
 
 
-async def setup(bot):
+async def setup(bot, music_manager):
     """
     Adiciona o cog ao bot.
 
     :param bot: O bot do Discord.
+    :param music_manager: O gerenciador de música compartilhado.
     """
-    await bot.add_cog(LeaveCommand(bot))
+    await bot.add_cog(LeaveCommand(bot, music_manager))

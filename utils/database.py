@@ -5,17 +5,23 @@ from dotenv import load_dotenv
 import os
 
 # Configuração de logs
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Localização do banco de dados
+# Carrega variáveis de ambiente
+load_dotenv()
 DATABASE_URL = os.getenv("DATABASE_URL")
+
+if not DATABASE_URL:
+    logger.critical("DATABASE_URL não está definida. Verifique o arquivo .env ou as variáveis de ambiente.")
 
 def get_db_connection() -> sqlite3.Connection:
     """
     Cria e retorna uma conexão com o banco de dados.
     """
     try:
-        return sqlite3.connect(DATABASE_URL)
+        conn = sqlite3.connect(DATABASE_URL)
+        return conn
     except sqlite3.Error as e:
         logger.critical(f"Erro ao conectar ao banco de dados: {e}")
         raise
@@ -29,29 +35,25 @@ def execute_query(query: str, params: Tuple = ()) -> Optional[int]:
             cursor = conn.cursor()
             cursor.execute(query, params)
             conn.commit()
-            rows_affected = cursor.rowcount
-            logger.debug(f"Query executada: {query} | Linhas afetadas: {rows_affected}")
-            return rows_affected
+            return cursor.rowcount
     except sqlite3.Error as e:
         logger.error(f"Erro ao executar a query '{query}': {e}")
         return None
 
-def fetchone(query: str, params: Tuple = ()) -> Optional[Tuple]:
+def fetch_one_or_none(query: str, params: Tuple = ()) -> Optional[Tuple]:
     """
-    Executa uma query e retorna um único resultado.
+    Executa uma query e retorna um único resultado ou None.
     """
     try:
         with get_db_connection() as conn:
             cursor = conn.cursor()
             cursor.execute(query, params)
-            result = cursor.fetchone()
-            logger.debug(f"Resultado da fetchone: {result}")
-            return result
+            return cursor.fetchone()
     except sqlite3.Error as e:
         logger.error(f"Erro ao executar a query '{query}': {e}")
         return None
 
-def fetchall(query: str, params: Tuple = ()) -> List[Tuple]:
+def fetch_all(query: str, params: Tuple = ()) -> List[Tuple]:
     """
     Executa uma query e retorna todos os resultados.
     """
@@ -59,9 +61,7 @@ def fetchall(query: str, params: Tuple = ()) -> List[Tuple]:
         with get_db_connection() as conn:
             cursor = conn.cursor()
             cursor.execute(query, params)
-            results = cursor.fetchall()
-            logger.debug(f"Resultados da fetchall: {results}")
-            return results
+            return cursor.fetchall()
     except sqlite3.Error as e:
         logger.error(f"Erro ao executar a query '{query}': {e}")
         return []
@@ -71,7 +71,7 @@ def get_config(key: str) -> Optional[str]:
     Obtém um valor da tabela 'configs' pelo seu key.
     """
     query = 'SELECT value FROM configs WHERE key = ?'
-    result = fetchone(query, (key,))
+    result = fetch_one_or_none(query, (key,))
     if result:
         return result[0]
     logger.warning(f"Configuração não encontrada para a chave: {key}")
@@ -83,9 +83,7 @@ def get_prefix() -> str:
     """
     prefix = get_config("PREFIXO")
     if prefix:
-        logger.info(f"Prefixo obtido do banco de dados: {prefix}")
         return prefix
-    logger.warning("Prefixo não encontrado, usando padrão (!).")
     return "!"
 
 def get_status_by_id(status_id: int) -> Optional[Tuple]:
@@ -93,35 +91,30 @@ def get_status_by_id(status_id: int) -> Optional[Tuple]:
     Obtém os dados do status pelo ID na tabela 'status'.
     """
     query = 'SELECT status_type, status_message, status_status FROM status WHERE id = ?'
-    result = fetchone(query, (status_id,))
-    if result:
-        logger.info(f"Status carregado: {result}")
-        return result
-    logger.warning(f"Nenhum status encontrado com o ID: {status_id}")
-    return None
+    return fetch_one_or_none(query, (status_id,))
 
 def get_restart_data() -> Tuple[int, Optional[str], Optional[str]]:
     """
     Obtém os dados de reinício do bot armazenados na tabela 'restart'.
     """
     query = 'SELECT restart_status, canal, user FROM restart WHERE rowid = 1'
-    result = fetchone(query)
-    if result:
-        logger.info(f"Dados de reinício carregados: {result}")
-        return result
-    logger.warning("Nenhum dado de reinício encontrado. Usando valores padrão.")
-    return (0, None, None)
+    result = fetch_one_or_none(query)
+    return result if result else (0, None, None)
 
 # Novas funções para gerenciamento de volume
 
 def get_user_volume(user_id: int) -> float:
+    """
+    Obtém o volume do usuário. Retorna 1.0 (padrão) se não estiver definido.
+    """
     query = "SELECT volume FROM volume WHERE user = ?"
-    result = fetchone(query, (user_id,))
-    if result:
-        return float(result[0]) / 100
-    return 1.0  # Retorna volume padrão
+    result = fetch_one_or_none(query, (user_id,))
+    return float(result[0]) / 100 if result else 1.0
 
 def set_user_volume(user_id: int, volume: float) -> None:
+    """
+    Define o volume do usuário, atualizando-o se já existir.
+    """
     query = """
     INSERT INTO volume (user, volume)
     VALUES (?, ?)
@@ -145,14 +138,14 @@ def get_all_formularios() -> List[Tuple]:
     Retorna todos os formulários da tabela 'formularios'.
     """
     query = "SELECT * FROM formularios"
-    return fetchall(query)
+    return fetch_all(query)
 
 def get_formulario_by_id(idform: int) -> Optional[Tuple]:
     """
     Retorna um formulário específico pelo 'idform'.
     """
     query = "SELECT * FROM formularios WHERE idform = ?"
-    return fetchone(query, (idform,))
+    return fetch_one_or_none(query, (idform,))
 
 def update_formulario(idform: int, nomecompleto: Optional[str] = None, idade: Optional[int] = None) -> Optional[int]:
     """

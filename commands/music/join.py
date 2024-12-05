@@ -1,13 +1,19 @@
 import discord
 from discord.ext import commands
 
+from utils.database import get_config
+
 class JoinCommand(commands.Cog):
     """
-    Comando para fazer o bot entrar em um canal de voz.
+    Comando para pausar a reprodução de música.
     """
 
-    def __init__(self, bot):
+    def __init__(self, bot, music_manager):
+        """
+        Inicializa o comando de pausa.
+        """
         self.bot = bot
+        self.music_manager = music_manager
 
     def create_embed(self, title, description, color=0xFF8000):
         """
@@ -17,7 +23,7 @@ class JoinCommand(commands.Cog):
         embed.set_footer(text=get_config("LEMA"))
         return embed
 
-    @commands.command(name="join", aliases=["entrar"])
+    @commands.command(name="join", aliases=["entrar, enter, connect, conectar"])
     async def join(self, ctx):
         """
         Faz o bot entrar no canal de voz do usuário.
@@ -50,10 +56,11 @@ class JoinCommand(commands.Cog):
         ))
 
 
-async def setup(bot):
+async def setup(bot, music_manager):
     """
     Adiciona o cog ao bot.
 
     :param bot: O bot do Discord.
+    :param music_manager: O gerenciador de música compartilhado.
     """
-    await bot.add_cog(JoinCommand(bot))
+    await bot.add_cog(JoinCommand(bot, music_manager))

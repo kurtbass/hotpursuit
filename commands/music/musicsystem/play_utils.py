@@ -5,6 +5,8 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+INACTIVITY_TIMEOUT = 10  # Tempo em segundos antes de desconectar por inatividade
+
 async def play_next(music_manager, bot):
     """
     Reproduz a próxima música da fila, mantendo o volume ajustado.
@@ -33,24 +35,37 @@ async def play_next(music_manager, bot):
             )
             music_manager.voice_client.play(
                 source,
-                after=lambda e: asyncio.run_coroutine_threadsafe(
-                    play_next(music_manager, bot), bot.loop
-                ).result()
+                after=lambda _: bot.loop.create_task(play_next(music_manager, bot))
             )
+
+            # Log da música em reprodução
             logger.info(f"Reproduzindo agora: {next_song['title']}")
+            if music_manager.current_song:
+                logger.debug(f"Detalhes da música: {music_manager.current_song}")
 
         else:
             # Não há mais músicas na fila, interrompe a reprodução
             music_manager.current_song = None
             logger.info("Fila vazia. Nenhuma música para reproduzir.")
-            if music_manager.voice_client.is_connected():
-                await asyncio.sleep(5)  # Tempo antes de sair do canal
+
+            # Aguardar antes de desconectar por inatividade
+            await asyncio.sleep(INACTIVITY_TIMEOUT)
+
+            # Verifica se o bot ainda está conectado e desconecta
+            if music_manager.voice_client and music_manager.voice_client.is_connected():
                 await music_manager.voice_client.disconnect()
                 music_manager.voice_client = None
                 logger.info("Bot desconectado do canal de voz por inatividade.")
 
+    except discord.ClientException as e:
+        logger.error(f"Erro no cliente Discord durante a reprodução: {e}")
+        if music_manager.voice_client and music_manager.voice_client.is_connected():
+            await music_manager.voice_client.disconnect()
+            music_manager.voice_client = None
+            logger.info("Bot desconectado do canal de voz devido a erro do cliente.")
+
     except Exception as e:
-        logger.error(f"Erro ao reproduzir a próxima música: {e}")
+        logger.error(f"Erro inesperado ao reproduzir a próxima música: {e}")
         # Desconecta o bot se ocorrer um erro crítico durante a reprodução
         if music_manager.voice_client and music_manager.voice_client.is_connected():
             await music_manager.voice_client.disconnect()

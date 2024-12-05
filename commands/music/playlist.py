@@ -1,38 +1,40 @@
-import discord
-from discord.ext import commands
-from utils.database import get_config, execute_query, fetchall, fetchone, get_user_volume
-from yt_dlp import YoutubeDL
 import asyncio
+from discord.ext import commands
+from commands.music.musicsystem.playlists import process_playlist
+from commands.music.musicsystem.ydl_opts import YDL_OPTS
+from utils.database import get_config, fetchall, fetchone, execute_query, get_user_volume
+import discord
 import logging
 
 logger = logging.getLogger(__name__)
 
-class PlaylistCommand(commands.Cog):
-    """
-    Comando para gerenciar playlists de usuários.
-    """
 
+class PlaylistCommand(commands.Cog):
     def __init__(self, bot, music_manager):
         self.bot = bot
         self.music_manager = music_manager
 
+    def create_embed(self, title, description, color=0xFF8000):
+        """
+        Cria uma mensagem embed personalizada.
+        """
+        embed = discord.Embed(title=title, description=description, color=color)
+        embed.set_footer(text=get_config("LEMA"))
+        return embed
+
     @commands.command(name="playlist", aliases=["pl"])
     async def playlist(self, ctx):
         """
-        Gerencia playlists do usuário.
+        Menu principal para gerenciamento de playlists.
         """
-        embed = discord.Embed(
-            title="🎶 Gerenciamento de Playlists",
-            description=(
-                "1️⃣ **Salvar playlist atual**\n"
-                "2️⃣ **Carregar uma playlist**\n"
-                "3️⃣ **Apagar uma playlist**\n"
-                "4️⃣ **Apagar todas as suas playlists**\n\n"
-                "Digite o número referente à opção desejada."
-            ),
-            color=0xFF8000
+        embed = self.create_embed(
+            "🎶 Gerenciamento de Playlists",
+            "1️⃣ **Salvar playlist atual**\n"
+            "2️⃣ **Carregar uma playlist**\n"
+            "3️⃣ **Apagar uma playlist**\n"
+            "4️⃣ **Apagar todas as suas playlists**\n\n"
+            "Digite o número referente à opção desejada."
         )
-        embed.set_footer(text=get_config("LEMA"))
         await ctx.send(embed=embed)
 
         def check(msg):
@@ -51,38 +53,94 @@ class PlaylistCommand(commands.Cog):
             elif option == 4:
                 await self.delete_all_playlists(ctx)
             else:
-                await ctx.send(embed=discord.Embed(
-                    title="Erro",
-                    description="⚠️ Opção inválida. Por favor, tente novamente.",
-                    color=0xFF0000
-                ).set_footer(text=get_config("LEMA")))
+                await ctx.send(embed=self.create_embed(
+                    "Erro", "⚠️ Opção inválida. Por favor, tente novamente.", 0xFF0000
+                ))
         except asyncio.TimeoutError:
-            await ctx.send(embed=discord.Embed(
-                title="Erro",
-                description="⏳ Tempo limite excedido. Por favor, tente novamente.",
-                color=0xFF0000
-            ).set_footer(text=get_config("LEMA")))
+            await ctx.send(embed=self.create_embed(
+                "Erro", "⏳ Tempo limite excedido. Por favor, tente novamente.", 0xFF0000
+            ))
+
+    async def save_playlist(self, ctx):
+        """
+        Salva a playlist atual na base de dados.
+        """
+        if not self.music_manager.music_queue:
+            await ctx.send(embed=self.create_embed(
+                "Erro", "⚠️ Não há músicas na fila para salvar.", 0xFF0000
+            ))
+            return
+
+        await ctx.send(embed=self.create_embed(
+            "🎶 Salvar Playlist",
+            "Digite o nome da sua playlist:"
+        ))
+
+        def check(msg):
+            return msg.author == ctx.author and msg.channel == ctx.channel
+
+        try:
+            msg = await self.bot.wait_for("message", timeout=60.0, check=check)
+            playlist_name = msg.content.strip()
+
+            # Verifica se uma playlist com o mesmo nome já existe
+            existing = fetchone("SELECT id FROM playlists WHERE userid = ? AND name = ?", (str(ctx.author.id), playlist_name))
+            if existing:
+                await ctx.send(embed=self.create_embed(
+                    "Erro", "⚠️ Você já tem uma playlist com esse nome. Escolha outro nome.", 0xFF0000
+                ))
+                return
+
+            # Insere a playlist na tabela playlists
+            total_duration = self.music_manager.get_total_duration()
+            execute_query(
+                "INSERT INTO playlists (userid, name, duration) VALUES (?, ?, ?)",
+                (str(ctx.author.id), playlist_name, total_duration)
+            )
+            playlist_id = fetchone("SELECT id FROM playlists WHERE userid = ? AND name = ?", (str(ctx.author.id), playlist_name))[0]
+
+            # Insere as músicas da fila na tabela playlist_songs
+            for song in self.music_manager.music_queue:
+                execute_query(
+                    "INSERT INTO playlist_songs (playlist_id, title, url, duration, uploader, thumbnail) VALUES (?, ?, ?, ?, ?, ?)",
+                    (playlist_id, song['title'], song['url'], song['duration'], song['uploader'], song['thumbnail'])
+                )
+
+            await ctx.send(embed=self.create_embed(
+                "🎉 Playlist Salva",
+                f"Playlist salva como **{playlist_name}**.\n"
+                f"**Duração Total:** {total_duration // 3600}:"
+                f"{(total_duration % 3600) // 60:02}:"
+                f"{total_duration % 60:02}\n"
+                f"Criada por: {ctx.author.mention}",
+                0x00FF00
+            ))
+        except asyncio.TimeoutError:
+            await ctx.send(embed=self.create_embed(
+                "Erro", "⏳ Tempo limite excedido. Por favor, tente novamente.", 0xFF0000
+            ))
+        except Exception as e:
+            logger.error(f"Erro ao salvar a playlist: {e}")
+            await ctx.send(embed=self.create_embed(
+                "Erro", "⚠️ Ocorreu um erro ao salvar a playlist. Verifique os logs para mais detalhes.", 0xFF0000
+            ))
 
     async def load_playlist(self, ctx):
         """
-        Lista e carrega uma playlist do usuário.
+        Carrega uma playlist do banco de dados.
         """
         playlists = fetchall("SELECT id, name, duration FROM playlists WHERE userid = ?", (str(ctx.author.id),))
         if not playlists:
-            await ctx.send(embed=discord.Embed(
-                title="Erro",
-                description="⚠️ Você não tem playlists salvas.",
-                color=0xFF0000
-            ).set_footer(text=get_config("LEMA")))
+            await ctx.send(embed=self.create_embed(
+                "Erro", "⚠️ Você não tem playlists salvas.", 0xFF0000
+            ))
             return
 
-        description = "\n".join(f"**{i+1}.** {pl[1]} | ⏱️ {pl[2]}" for i, pl in enumerate(playlists))
-        embed = discord.Embed(
-            title="🎶 Suas Playlists",
-            description=f"{description}\n\nDigite o número da playlist que deseja carregar.",
-            color=0xFF8000
+        description = "\n".join(f"**{i+1}.** {pl[1]}" for i, pl in enumerate(playlists))
+        embed = self.create_embed(
+            "🎶 Suas Playlists",
+            f"{description}\n\nDigite o número da playlist que deseja carregar."
         )
-        embed.set_footer(text=get_config("LEMA"))
         await ctx.send(embed=embed)
 
         def check(msg):
@@ -93,94 +151,88 @@ class PlaylistCommand(commands.Cog):
             playlist_number = int(msg.content.strip())
 
             if not 1 <= playlist_number <= len(playlists):
-                await ctx.send(embed=discord.Embed(
-                    title="Erro",
-                    description="⚠️ Número inválido. Por favor, tente novamente.",
-                    color=0xFF0000
-                ).set_footer(text=get_config("LEMA")))
+                await ctx.send(embed=self.create_embed(
+                    "Erro", "⚠️ Número inválido. Por favor, tente novamente.", 0xFF0000
+                ))
                 return
 
-            playlist_id = playlists[playlist_number - 1][0]
-            playlist_data = fetchone("SELECT links FROM playlists WHERE id = ?", (playlist_id,))
-            if playlist_data:
-                links = playlist_data[0].split(",")
-                self.music_manager.clear_queue()
+            playlist_data = playlists[playlist_number - 1]
+            playlist_id, playlist_name, playlist_duration = playlist_data
 
+            songs = fetchall("SELECT title, url, duration, uploader, thumbnail FROM playlist_songs WHERE playlist_id = ?", (playlist_id,))
+            if not songs:
+                await ctx.send(embed=self.create_embed(
+                    "Erro", f"⚠️ A playlist **{playlist_name}** está vazia.", 0xFF0000
+                ))
+                return
+
+            for song in songs:
+                self.music_manager.add_to_queue({
+                    'title': song[0],
+                    'url': song[1],
+                    'duration': song[2],
+                    'uploader': song[3],
+                    'thumbnail': song[4],
+                    'added_by': ctx.author.display_name
+                })
+
+            await ctx.send(embed=self.create_embed(
+                "🎶 Playlist Adicionada à Fila",
+                f"**Título:** {playlist_name}\n"
+                f"**Quantidade de Músicas:** {len(songs)}\n"
+                f"**Duração Total:** {playlist_duration // 3600}:"
+                f"{(playlist_duration % 3600) // 60:02}:"
+                f"{playlist_duration % 60:02}\n"
+                f"**Adicionada por:** {ctx.author.mention}",
+                0xFF8000
+            ))
+
+            # Garantir que o bot esteja conectado ao canal de voz
+            if not self.music_manager.voice_client or not self.music_manager.voice_client.is_connected():
                 if ctx.author.voice:
-                    if not self.music_manager.voice_client or not self.music_manager.voice_client.is_connected():
-                        self.music_manager.voice_client = await ctx.author.voice.channel.connect()
-
-                    user_volume = get_user_volume(ctx.author.id)
-                    self.music_manager.volume = user_volume if user_volume is not None else 1.0
-
-                    ydl_opts = {
-                        'format': 'bestaudio/best',
-                        'quiet': True,
-                        'ignoreerrors': True  # Ignorar automaticamente vídeos problemáticos
-                    }
-
-                    with YoutubeDL(ydl_opts) as ydl:
-                        for link in links:
-                            try:
-                                info = ydl.extract_info(link, download=False)
-                                if info:
-                                    song = {
-                                        'title': info.get('title', 'Desconhecido'),
-                                        'url': link,
-                                        'duration': info.get('duration', 0),
-                                        'stream_url': info.get('url', None),
-                                        'thumbnail': info.get('thumbnail', None),
-                                        'added_by': ctx.author.display_name
-                                    }
-                                    self.music_manager.add_to_queue(song)
-                            except Exception as e:
-                                logger.error(f"Erro ao carregar vídeo: {link} - {e}")
-                                await ctx.send(embed=discord.Embed(
-                                    title="Erro",
-                                    description=f"⚠️ Não foi possível carregar o vídeo: {link}. Ignorando...",
-                                    color=0xFF0000
-                                ))
-                            await asyncio.sleep(0.1)
-
-                    await ctx.send(embed=discord.Embed(
-                        title="🎶 Playlist Carregada",
-                        description=f"Playlist **{playlists[playlist_number - 1][1]}** carregada com sucesso!",
-                        color=0x00FF00
-                    ).set_footer(text=get_config("LEMA")))
+                    self.music_manager.voice_client = await ctx.author.voice.channel.connect()
                 else:
-                    await ctx.send(embed=discord.Embed(
-                        title="Erro",
-                        description="⚠️ Você precisa estar em um canal de voz para carregar a playlist.",
-                        color=0xFF0000
-                    ).set_footer(text=get_config("LEMA")))
+                    await ctx.send(embed=self.create_embed(
+                        "Erro", "⚠️ Você precisa estar em um canal de voz para carregar a playlist.", 0xFF0000
+                    ))
+                    return
+
+            # Toca a próxima música se o bot não estiver reproduzindo nada
+            if not self.music_manager.voice_client.is_playing():
+                await self.music_manager.play_next(ctx)
+
         except asyncio.TimeoutError:
-            await ctx.send(embed=discord.Embed(
-                title="Erro",
-                description="⏳ Tempo limite excedido. Por favor, tente novamente.",
-                color=0xFF0000
-            ).set_footer(text=get_config("LEMA")))
+            await ctx.send(embed=self.create_embed(
+                "Erro", "⏳ Tempo limite excedido. Por favor, tente novamente.", 0xFF0000
+            ))
+        except Exception as e:
+            logger.error(f"Erro ao carregar playlist: {e}")
+            await ctx.send(embed=self.create_embed(
+                "Erro", f"⚠️ Ocorreu um erro ao carregar a playlist: {str(e)}", 0xFF0000
+            ))
 
     async def delete_all_playlists(self, ctx):
         """
-        Apaga todas as playlists do usuário.
+        Remove todas as playlists do usuário.
         """
         playlists = fetchall("SELECT id FROM playlists WHERE userid = ?", (str(ctx.author.id),))
         if not playlists:
-            await ctx.send(embed=discord.Embed(
-                title="Erro",
-                description="⚠️ Você não tem playlists salvas.",
-                color=0xFF0000
-            ).set_footer(text=get_config("LEMA")))
+            await ctx.send(embed=self.create_embed(
+                "Erro", "⚠️ Você não tem playlists salvas.", 0xFF0000
+            ))
             return
 
         execute_query("DELETE FROM playlists WHERE userid = ?", (str(ctx.author.id),))
+        execute_query("DELETE FROM playlist_songs WHERE playlist_id IN (SELECT id FROM playlists WHERE userid = ?)", (str(ctx.author.id),))
 
-        await ctx.send(embed=discord.Embed(
-            title="🎉 Todas as Playlists Apagadas",
-            description="Todas as suas playlists foram apagadas com sucesso.",
-            color=0x00FF00
-        ).set_footer(text=get_config("LEMA")))
+        await ctx.send(embed=self.create_embed(
+            "🎉 Todas as Playlists Apagadas",
+            "Todas as suas playlists foram apagadas com sucesso.", 0x00FF00
+        ))
 
 
 async def setup(bot, music_manager):
+    """
+    Adiciona o cog de playlists ao bot.
+    """
     await bot.add_cog(PlaylistCommand(bot, music_manager))
