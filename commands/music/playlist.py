@@ -1,3 +1,4 @@
+from utils.database import get_embed_color
 import asyncio
 from discord.ext import commands
 from commands.music.musicsystem.playlists import process_playlist
@@ -14,7 +15,7 @@ class PlaylistCommand(commands.Cog):
         self.bot = bot
         self.music_manager = music_manager
 
-    def create_embed(self, title, description, color=0xFF8000):
+    def create_embed(self, title, description, color=get_embed_color()):
         """
         Cria uma mensagem embed personalizada.
         """
@@ -54,11 +55,11 @@ class PlaylistCommand(commands.Cog):
                 await self.delete_all_playlists(ctx)
             else:
                 await ctx.send(embed=self.create_embed(
-                    "Erro", "⚠️ Opção inválida. Por favor, tente novamente.", 0xFF0000
+                    "Erro", "⚠️ Opção inválida. Por favor, tente novamente.", get_embed_color()
                 ))
         except asyncio.TimeoutError:
             await ctx.send(embed=self.create_embed(
-                "Erro", "⏳ Tempo limite excedido. Por favor, tente novamente.", 0xFF0000
+                "Erro", "⏳ Tempo limite excedido. Por favor, tente novamente.", get_embed_color()
             ))
 
     async def save_playlist(self, ctx):
@@ -67,7 +68,7 @@ class PlaylistCommand(commands.Cog):
         """
         if not self.music_manager.music_queue:
             await ctx.send(embed=self.create_embed(
-                "Erro", "⚠️ Não há músicas na fila para salvar.", 0xFF0000
+                "Erro", "⚠️ Não há músicas na fila para salvar.", get_embed_color()
             ))
             return
 
@@ -87,7 +88,7 @@ class PlaylistCommand(commands.Cog):
             existing = fetchone("SELECT id FROM playlists WHERE userid = ? AND name = ?", (str(ctx.author.id), playlist_name))
             if existing:
                 await ctx.send(embed=self.create_embed(
-                    "Erro", "⚠️ Você já tem uma playlist com esse nome. Escolha outro nome.", 0xFF0000
+                    "Erro", "⚠️ Você já tem uma playlist com esse nome. Escolha outro nome.", get_embed_color()
                 ))
                 return
 
@@ -113,16 +114,16 @@ class PlaylistCommand(commands.Cog):
                 f"{(total_duration % 3600) // 60:02}:"
                 f"{total_duration % 60:02}\n"
                 f"Criada por: {ctx.author.mention}",
-                0x00FF00
+                get_embed_color()
             ))
         except asyncio.TimeoutError:
             await ctx.send(embed=self.create_embed(
-                "Erro", "⏳ Tempo limite excedido. Por favor, tente novamente.", 0xFF0000
+                "Erro", "⏳ Tempo limite excedido. Por favor, tente novamente.", get_embed_color()
             ))
         except Exception as e:
             logger.error(f"Erro ao salvar a playlist: {e}")
             await ctx.send(embed=self.create_embed(
-                "Erro", "⚠️ Ocorreu um erro ao salvar a playlist. Verifique os logs para mais detalhes.", 0xFF0000
+                "Erro", "⚠️ Ocorreu um erro ao salvar a playlist. Verifique os logs para mais detalhes.", get_embed_color()
             ))
 
     async def load_playlist(self, ctx):
@@ -132,7 +133,7 @@ class PlaylistCommand(commands.Cog):
         playlists = fetchall("SELECT id, name, duration FROM playlists WHERE userid = ?", (str(ctx.author.id),))
         if not playlists:
             await ctx.send(embed=self.create_embed(
-                "Erro", "⚠️ Você não tem playlists salvas.", 0xFF0000
+                "Erro", "⚠️ Você não tem playlists salvas.", get_embed_color()
             ))
             return
 
@@ -152,7 +153,7 @@ class PlaylistCommand(commands.Cog):
 
             if not 1 <= playlist_number <= len(playlists):
                 await ctx.send(embed=self.create_embed(
-                    "Erro", "⚠️ Número inválido. Por favor, tente novamente.", 0xFF0000
+                    "Erro", "⚠️ Número inválido. Por favor, tente novamente.", get_embed_color()
                 ))
                 return
 
@@ -162,7 +163,7 @@ class PlaylistCommand(commands.Cog):
             songs = fetchall("SELECT title, url, duration, uploader, thumbnail FROM playlist_songs WHERE playlist_id = ?", (playlist_id,))
             if not songs:
                 await ctx.send(embed=self.create_embed(
-                    "Erro", f"⚠️ A playlist **{playlist_name}** está vazia.", 0xFF0000
+                    "Erro", f"⚠️ A playlist **{playlist_name}** está vazia.", get_embed_color()
                 ))
                 return
 
@@ -184,7 +185,7 @@ class PlaylistCommand(commands.Cog):
                 f"{(playlist_duration % 3600) // 60:02}:"
                 f"{playlist_duration % 60:02}\n"
                 f"**Adicionada por:** {ctx.author.mention}",
-                0xFF8000
+                get_embed_color()
             ))
 
             # Garantir que o bot esteja conectado ao canal de voz
@@ -193,7 +194,7 @@ class PlaylistCommand(commands.Cog):
                     self.music_manager.voice_client = await ctx.author.voice.channel.connect()
                 else:
                     await ctx.send(embed=self.create_embed(
-                        "Erro", "⚠️ Você precisa estar em um canal de voz para carregar a playlist.", 0xFF0000
+                        "Erro", "⚠️ Você precisa estar em um canal de voz para carregar a playlist.", get_embed_color()
                     ))
                     return
 
@@ -203,12 +204,12 @@ class PlaylistCommand(commands.Cog):
 
         except asyncio.TimeoutError:
             await ctx.send(embed=self.create_embed(
-                "Erro", "⏳ Tempo limite excedido. Por favor, tente novamente.", 0xFF0000
+                "Erro", "⏳ Tempo limite excedido. Por favor, tente novamente.", get_embed_color()
             ))
         except Exception as e:
             logger.error(f"Erro ao carregar playlist: {e}")
             await ctx.send(embed=self.create_embed(
-                "Erro", f"⚠️ Ocorreu um erro ao carregar a playlist: {str(e)}", 0xFF0000
+                "Erro", f"⚠️ Ocorreu um erro ao carregar a playlist: {str(e)}", get_embed_color()
             ))
 
     async def delete_all_playlists(self, ctx):
@@ -218,7 +219,7 @@ class PlaylistCommand(commands.Cog):
         playlists = fetchall("SELECT id FROM playlists WHERE userid = ?", (str(ctx.author.id),))
         if not playlists:
             await ctx.send(embed=self.create_embed(
-                "Erro", "⚠️ Você não tem playlists salvas.", 0xFF0000
+                "Erro", "⚠️ Você não tem playlists salvas.", get_embed_color()
             ))
             return
 
@@ -227,7 +228,7 @@ class PlaylistCommand(commands.Cog):
 
         await ctx.send(embed=self.create_embed(
             "🎉 Todas as Playlists Apagadas",
-            "Todas as suas playlists foram apagadas com sucesso.", 0x00FF00
+            "Todas as suas playlists foram apagadas com sucesso.", get_embed_color()
         ))
 
 

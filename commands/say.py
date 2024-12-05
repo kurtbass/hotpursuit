@@ -1,3 +1,4 @@
+from utils.database import get_embed_color
 import discord
 from discord.ext import commands
 import logging
@@ -26,7 +27,7 @@ class SayCommand(commands.Cog):
             logger.error(f"Erro ao carregar configuração '{key}': {e}")
             return None
 
-    def create_embed(self, description, color=0xFF8000):
+    def create_embed(self, description, color=get_embed_color()):
         """Cria um embed padronizado com o lema."""
         embed = discord.Embed(description=description, color=color)
         embed.set_footer(text=self.lema)
@@ -37,14 +38,14 @@ class SayCommand(commands.Cog):
         if not message.strip():
             await ctx.send(embed=self.create_embed(
                 description="⚠️ A mensagem não pode estar vazia.",
-                color=0xFF0000
+                color=get_embed_color()
             ), delete_after=10)
             return False
 
         if len(message) > 2000:
             await ctx.send(embed=self.create_embed(
                 description="⚠️ A mensagem excede o limite de 2000 caracteres.",
-                color=0xFF0000
+                color=get_embed_color()
             ), delete_after=10)
             return False
 
@@ -66,7 +67,7 @@ class SayCommand(commands.Cog):
         if ctx.guild and ctx.guild.id != self.allowed_server_id:
             await ctx.send(embed=self.create_embed(
                 description=f"{ctx.author.mention}, este comando não pode ser usado neste servidor.",
-                color=0xFF0000
+                color=get_embed_color()
             ))
             return
 
@@ -95,7 +96,7 @@ class SayCommand(commands.Cog):
         if not channel.permissions_for(ctx.guild.me).send_messages:
             await ctx.send(embed=self.create_embed(
                 description=f"⚠️ Não tenho permissão para enviar mensagens no canal {channel.mention}.",
-                color=0xFF0000
+                color=get_embed_color()
             ), delete_after=10)
             return
 
@@ -111,14 +112,14 @@ class SayCommand(commands.Cog):
             # Feedback para o autor do comando
             feedback = self.create_embed(
                 description=f"Mensagem enviada para {channel.mention}.",
-                color=0x00FF00
+                color=get_embed_color()
             )
             await ctx.send(embed=feedback, delete_after=10)
         except Exception as e:
             logger.error(f"Erro ao enviar mensagem para o canal '{channel.name}': {e}")
             await ctx.send(embed=self.create_embed(
                 description="⚠️ Ocorreu um erro ao tentar enviar a mensagem. Tente novamente mais tarde.",
-                color=0xFF0000
+                color=get_embed_color()
             ), delete_after=10)
 
 async def setup(bot):

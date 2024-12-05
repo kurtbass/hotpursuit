@@ -1,3 +1,4 @@
+from utils.database import get_embed_color
 import discord
 from discord.ext import commands
 import logging
@@ -22,7 +23,7 @@ class PreviousCommand(commands.Cog):
 
         if voice_client is None or not voice_client.is_connected():
             await ctx.send(embed=self.music_manager.create_embed(
-                "Erro", "⚠️ O bot não está conectado a nenhum canal de voz.", 0xFF0000
+                "Erro", "⚠️ O bot não está conectado a nenhum canal de voz.", get_embed_color()
             ))
             return
 
@@ -30,13 +31,13 @@ class PreviousCommand(commands.Cog):
         previous_song = self.music_manager.get_previous_song()
         if not previous_song:
             await ctx.send(embed=self.music_manager.create_embed(
-                "Erro", "⚠️ Não há nenhuma música anterior no histórico.", 0xFF0000
+                "Erro", "⚠️ Não há nenhuma música anterior no histórico.", get_embed_color()
             ))
             return
 
         if not ctx.author.voice or ctx.author.voice.channel != voice_client.channel:
             await ctx.send(embed=self.music_manager.create_embed(
-                "Erro", "⚠️ Você precisa estar no mesmo canal de voz do bot para usar este comando.", 0xFF0000
+                "Erro", "⚠️ Você precisa estar no mesmo canal de voz do bot para usar este comando.", get_embed_color()
             ))
             return
 
@@ -82,7 +83,7 @@ class PreviousCommand(commands.Cog):
         except Exception as e:
             logger.error(f"Erro ao reproduzir a música anterior: {e}")
             await ctx.send(embed=self.music_manager.create_embed(
-                "Erro", "⚠️ Ocorreu um erro ao tentar reproduzir a música anterior.", 0xFF0000
+                "Erro", "⚠️ Ocorreu um erro ao tentar reproduzir a música anterior.", get_embed_color()
             ))
 
 

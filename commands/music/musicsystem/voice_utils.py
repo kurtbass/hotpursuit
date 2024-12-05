@@ -1,3 +1,4 @@
+from utils.database import get_embed_color
 import discord
 from utils.database import get_user_volume
 import logging
@@ -15,7 +16,7 @@ async def join_voice_channel(ctx, music_manager):
     if ctx.author.voice is None:
         # Usuário não está em um canal de voz
         await ctx.send(embed=music_manager.create_embed(
-            "Erro", "⚠️ Você precisa estar em um canal de voz para usar este comando.", 0xFF0000
+            "Erro", "⚠️ Você precisa estar em um canal de voz para usar este comando.", get_embed_color()
         ))
         return None
 
@@ -43,21 +44,21 @@ async def join_voice_channel(ctx, music_manager):
     except discord.errors.ClientException as e:
         logger.error(f"Erro ao tentar conectar ou mover ao canal de voz: {e}")
         await ctx.send(embed=music_manager.create_embed(
-            "Erro", "⚠️ Não foi possível conectar ou mover para o canal de voz. Verifique as permissões do bot.", 0xFF0000
+            "Erro", "⚠️ Não foi possível conectar ou mover para o canal de voz. Verifique as permissões do bot.", get_embed_color()
         ))
         return None
 
     except discord.errors.Forbidden:
         logger.error("Permissões insuficientes para conectar ou mover o bot ao canal de voz.")
         await ctx.send(embed=music_manager.create_embed(
-            "Erro", "⚠️ O bot não tem permissão para conectar ou mover para este canal de voz.", 0xFF0000
+            "Erro", "⚠️ O bot não tem permissão para conectar ou mover para este canal de voz.", get_embed_color()
         ))
         return None
 
     except Exception as e:
         logger.error(f"Erro inesperado ao conectar ao canal de voz: {e}")
         await ctx.send(embed=music_manager.create_embed(
-            "Erro", "⚠️ Ocorreu um erro inesperado ao tentar conectar ao canal de voz.", 0xFF0000
+            "Erro", "⚠️ Ocorreu um erro inesperado ao tentar conectar ao canal de voz.", get_embed_color()
         ))
         return None
 

@@ -1,3 +1,4 @@
+from utils.database import get_embed_color
 import discord
 from discord.ext import commands
 import logging
@@ -28,7 +29,7 @@ class LimparMensagens(commands.Cog):
             logger.error(f"Erro ao carregar configuração '{key}': {e}")
             return None
 
-    def create_embed(self, description, color=0xFF8000):
+    def create_embed(self, description, color=get_embed_color()):
         """Cria um embed padronizado com o lema."""
         embed = discord.Embed(description=description, color=color)
         embed.set_footer(text=self.lema)
@@ -39,7 +40,7 @@ class LimparMensagens(commands.Cog):
         if not self.cargo_autorizado:
             logger.warning("TAG_STAFF não configurado. Nenhum cargo autorizado pode executar este comando.")
             await ctx.send(
-                embed=self.create_embed("⚠️ Nenhum cargo autorizado configurado. Procure o programador.", color=0xFF0000)
+                embed=self.create_embed("⚠️ Nenhum cargo autorizado configurado. Procure o programador.", color=get_embed_color())
             )
             return False
 
@@ -47,7 +48,7 @@ class LimparMensagens(commands.Cog):
         if not autorizado:
             logger.warning(f"Usuário {ctx.author} tentou usar o comando sem permissão.")
             await ctx.send(
-                embed=self.create_embed("⚠️ Você não tem permissão para executar este comando.", color=0xFF0000),
+                embed=self.create_embed("⚠️ Você não tem permissão para executar este comando.", color=get_embed_color()),
                 delete_after=30,
             )
         return autorizado
@@ -73,7 +74,7 @@ class LimparMensagens(commands.Cog):
                 await ctx.send(
                     embed=self.create_embed(
                         "⚠️ Por favor, forneça um número válido ou use `tudo` para apagar todas as mensagens.",
-                        color=0xFF0000,
+                        color=get_embed_color(),
                     ),
                     delete_after=30,
                 )
@@ -83,7 +84,7 @@ class LimparMensagens(commands.Cog):
 
     async def confirmar_limpeza(self, ctx, message):
         """Confirmação de limpeza para ações críticas."""
-        embed = self.create_embed(f"{message} Responda: `Sim` ou `Não`.", color=0xFFFF00)
+        embed = self.create_embed(f"{message} Responda: `Sim` ou `Não`.", color=get_embed_color())
         confirmation_message = await ctx.send(embed=embed)
 
         def check(m):
@@ -96,7 +97,7 @@ class LimparMensagens(commands.Cog):
             return response.content.lower() in ["sim", "s"]
         except asyncio.TimeoutError:
             await ctx.send(
-                embed=self.create_embed("⚠️ Tempo esgotado. Ação cancelada.", color=0xFF0000),
+                embed=self.create_embed("⚠️ Tempo esgotado. Ação cancelada.", color=get_embed_color()),
                 delete_after=30,
             )
             return False
@@ -126,7 +127,7 @@ class LimparMensagens(commands.Cog):
 
     async def enviar_feedback(self, ctx, total_deleted):
         """Envia uma mensagem de feedback sobre a limpeza realizada."""
-        embed = self.create_embed(f"**{total_deleted} mensagens** foram apagadas por {ctx.author.mention}.", color=0x00FF00)
+        embed = self.create_embed(f"**{total_deleted} mensagens** foram apagadas por {ctx.author.mention}.", color=get_embed_color())
         await ctx.send(embed=embed, delete_after=30)
 
 

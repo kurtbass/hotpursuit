@@ -1,3 +1,4 @@
+from utils.database import get_embed_color
 import discord
 from discord.ext import commands
 from utils.database import fetchall, get_config
@@ -14,7 +15,7 @@ class NivelEPrisoesCommand(commands.Cog):
         ]
         self.lema = get_config("LEMA") or "LEMA NÃO CARREGADO, PROCURE O PROGRAMADOR DO BOT"
 
-    def create_embed(self, title, description, color=0xFF8000):
+    def create_embed(self, title, description, color=get_embed_color()):
         """
         Cria um embed padronizado com título, descrição e cor.
         """
@@ -30,7 +31,7 @@ class NivelEPrisoesCommand(commands.Cog):
             await ctx.send(embed=self.create_embed(
                 "Sem Permissão",
                 "⚠️ Você não tem permissão para usar este comando.",
-                0xFF0000
+                get_embed_color()
             ))
             return False
         return True
@@ -50,7 +51,7 @@ class NivelEPrisoesCommand(commands.Cog):
                 await ctx.send(embed=self.create_embed(
                     "Nenhum Dado Encontrado",
                     "⚠️ Não há registros salvos na tabela de níveis e prisões.",
-                    0xFF0000
+                    get_embed_color()
                 ))
                 return
 
@@ -70,7 +71,7 @@ class NivelEPrisoesCommand(commands.Cog):
             await ctx.send(embed=self.create_embed(
                 "Erro",
                 "⚠️ Ocorreu um erro ao buscar os dados. Tente novamente mais tarde.",
-                0xFF0000
+                get_embed_color()
             ))
 
 async def setup(bot):

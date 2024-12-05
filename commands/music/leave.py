@@ -1,3 +1,4 @@
+from utils.database import get_embed_color
 import discord
 from discord.ext import commands
 
@@ -15,7 +16,7 @@ class LeaveCommand(commands.Cog):
         self.bot = bot
         self.music_manager = music_manager
 
-    def create_embed(self, title, description, color=0xFF8000):
+    def create_embed(self, title, description, color=get_embed_color()):
         """
         Cria um embed padronizado com título, descrição e cor.
         """
@@ -32,7 +33,7 @@ class LeaveCommand(commands.Cog):
             await ctx.send(embed=self.create_embed(
                 "Erro",
                 "⚠️ Não estou conectado a nenhum canal de voz.",
-                0xFF0000
+                get_embed_color()
             ))
             return
 
@@ -42,14 +43,14 @@ class LeaveCommand(commands.Cog):
                 await ctx.send(embed=self.create_embed(
                     "Desconectado",
                     f"✅ Saí do canal **{vc.channel.name}**.",
-                    0xFF8000
+                    get_embed_color()
                 ))
                 return
 
         await ctx.send(embed=self.create_embed(
             "Erro",
             "⚠️ Você não está no mesmo canal de voz que eu.",
-            0xFF0000
+            get_embed_color()
         ))
 
 

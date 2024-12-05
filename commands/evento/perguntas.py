@@ -1,3 +1,4 @@
+from utils.database import get_embed_color
 import discord
 import asyncio
 import logging
@@ -20,7 +21,7 @@ class PerguntasHelper:
         self.bot = bot
         self.lema = lema
 
-    def create_embed(self, title, description, color=0xFF8000, image_url=None):
+    def create_embed(self, title, description, color=get_embed_color(), image_url=None):
         """
         Cria um embed padronizado com título, descrição, cor e uma imagem opcional.
 
@@ -54,7 +55,7 @@ class PerguntasHelper:
             )
             return response.content.strip()
         except asyncio.TimeoutError:
-            await ctx.send(embed=self.create_embed("Tempo Esgotado", "O comando foi cancelado.", 0xFF0000))
+            await ctx.send(embed=self.create_embed("Tempo Esgotado", "O comando foi cancelado.", get_embed_color()))
             return None
 
     async def confirm_action(self, ctx, question):
@@ -87,7 +88,7 @@ class PerguntasHelper:
             elif response.content.startswith("http"):
                 return response.content
         except asyncio.TimeoutError:
-            await ctx.send(embed=self.create_embed("Tempo Esgotado", "O comando foi cancelado.", 0xFF0000))
+            await ctx.send(embed=self.create_embed("Tempo Esgotado", "O comando foi cancelado.", get_embed_color()))
             return None
 
     async def ask_color(self, ctx):
@@ -95,21 +96,21 @@ class PerguntasHelper:
         Solicita ao usuário uma cor em formato hexadecimal.
 
         :param ctx: Contexto do comando.
-        :return: Cor em formato inteiro ou cor padrão (0xFF8000) em caso de erro.
+        :return: Cor em formato inteiro ou cor padrão (get_embed_color()) em caso de erro.
         """
         while True:
-            response = await self.ask_question(ctx, "Digite o código hexadecimal da cor (Ex: FF8000):")
+            response = await self.ask_question(ctx, "Digite o código hexadecimal da cor (Ex: get_embed_color()):")
             if not response:
                 # Caso o usuário não responda, retornamos a cor padrão
-                await ctx.send(embed=self.create_embed("Erro", "Nenhuma resposta fornecida. Usando cor padrão.", 0xFF0000))
-                return 0xFF8000
+                await ctx.send(embed=self.create_embed("Erro", "Nenhuma resposta fornecida. Usando cor padrão.", get_embed_color()))
+                return get_embed_color()
             try:
                 # Tentativa de converter a entrada para hexadecimal
                 return int(response.lstrip("#"), 16)
             except ValueError:
                 # Feedback claro sobre o formato incorreto
                 await ctx.send(embed=self.create_embed(
-                    "Erro", "⚠️ Código de cor inválido. Por favor, insira um código hexadecimal válido (Ex: FF8000).", 0xFF0000
+                    "Erro", "⚠️ Código de cor inválido. Por favor, insira um código hexadecimal válido (Ex: FF8000()).", get_embed_color()
                 ))
 
     async def collect_event_details(self, ctx):
@@ -151,6 +152,6 @@ class PerguntasHelper:
         if await self.confirm_action(ctx, "Deseja mudar a cor da embed?"):
             event_data["cor"] = await self.ask_color(ctx)
         else:
-            event_data["cor"] = 0xFF8000
+            event_data["cor"] = get_embed_color()
 
         return event_data

@@ -1,3 +1,4 @@
+from utils.database import get_embed_color
 import discord
 from discord.ext import commands
 import logging
@@ -23,14 +24,14 @@ class NowCommand(commands.Cog):
         # Verifica se há uma música sendo tocada
         if not self.music_manager.current_song:
             await ctx.send(embed=self.music_manager.create_embed(
-                "Erro", "⚠️ Não há nenhuma música tocando no momento.", 0xFF0000
+                "Erro", "⚠️ Não há nenhuma música tocando no momento.", get_embed_color()
             ))
             return
 
         # Verifica se o usuário está no mesmo canal de voz que o bot
         if not ctx.author.voice or ctx.author.voice.channel != self.music_manager.voice_client.channel:
             await ctx.send(embed=self.music_manager.create_embed(
-                "Erro", "⚠️ Você precisa estar no mesmo canal de voz do bot para usar este comando.", 0xFF0000
+                "Erro", "⚠️ Você precisa estar no mesmo canal de voz do bot para usar este comando.", get_embed_color()
             ))
             return
 
@@ -65,7 +66,7 @@ class NowCommand(commands.Cog):
         except Exception as e:
             logger.error(f"Erro ao exibir informações da música atual: {e}")
             await ctx.send(embed=self.music_manager.create_embed(
-                "Erro", "⚠️ Ocorreu um erro ao tentar exibir as informações da música atual.", 0xFF0000
+                "Erro", "⚠️ Ocorreu um erro ao tentar exibir as informações da música atual.", get_embed_color()
             ))
 
 

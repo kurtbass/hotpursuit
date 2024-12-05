@@ -1,3 +1,4 @@
+from utils.database import get_config, get_embed_color
 import asyncio
 import discord
 from discord.ext import commands
@@ -14,7 +15,7 @@ class SkipCommand(commands.Cog):
         self.bot = bot
         self.music_manager = music_manager  # Gerenciador centralizado de músicas
 
-    def create_embed(self, title, description, color=0xFF8000, banner=None):
+    def create_embed(self, title, description, color=get_embed_color(), banner=None):
         """
         Cria um embed padronizado com título, descrição e cor.
 
@@ -25,7 +26,7 @@ class SkipCommand(commands.Cog):
         :return: Objeto discord.Embed.
         """
         embed = discord.Embed(title=title, description=description, color=color)
-        embed.set_footer(text="Hot Pursuit - Potência e Precisão, Sempre na Frente.")
+        embed.set_footer(text=get_config("LEMA"))
         if banner:
             embed.set_image(url=banner)
         return embed
@@ -39,13 +40,13 @@ class SkipCommand(commands.Cog):
 
         if voice_client is None or not voice_client.is_connected():
             await ctx.send(embed=self.create_embed(
-                "Erro", "⚠️ O bot não está conectado a nenhum canal de voz.", 0xFF0000
+                "Erro", "⚠️ O bot não está conectado a nenhum canal de voz.", get_embed_color()
             ))
             return
 
         if not voice_client.is_playing():
             await ctx.send(embed=self.create_embed(
-                "Erro", "⚠️ Nenhuma música está sendo tocada no momento.", 0xFF0000
+                "Erro", "⚠️ Nenhuma música está sendo tocada no momento.", get_embed_color()
             ))
             return
 
@@ -91,13 +92,13 @@ class SkipCommand(commands.Cog):
                     self.music_manager.current_song = None
                 voice_client.stop()
                 await ctx.send(embed=self.create_embed(
-                    "Fila Vazia", "⚠️ Não há músicas na fila para reproduzir após esta.", 0xFF8000
+                    "Fila Vazia", "⚠️ Não há músicas na fila para reproduzir após esta.", get_embed_color()
                 ))
 
         except Exception as e:
             logger.error(f"Erro ao tentar pular para a próxima música: {e}")
             await ctx.send(embed=self.create_embed(
-                "Erro", "⚠️ Ocorreu um erro ao tentar reproduzir a próxima música.", 0xFF0000
+                "Erro", "⚠️ Ocorreu um erro ao tentar reproduzir a próxima música.", get_embed_color()
             ))
 
 

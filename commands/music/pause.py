@@ -1,3 +1,4 @@
+from utils.database import get_embed_color
 import discord
 from discord.ext import commands
 import logging
@@ -33,21 +34,21 @@ class PauseCommand(commands.Cog):
         # Verifica se o bot está conectado a um canal de voz
         if voice_client is None or not voice_client.is_connected():
             await ctx.send(embed=self.music_manager.create_embed(
-                "Erro", "⚠️ O bot não está conectado a nenhum canal de voz.", 0xFF0000
+                "Erro", "⚠️ O bot não está conectado a nenhum canal de voz.", get_embed_color()
             ))
             return
 
         # Verifica se o usuário está no mesmo canal do bot
         if not ctx.author.voice or ctx.author.voice.channel != voice_client.channel:
             await ctx.send(embed=self.music_manager.create_embed(
-                "Erro", "⚠️ Você precisa estar no mesmo canal de voz do bot para usar este comando.", 0xFF0000
+                "Erro", "⚠️ Você precisa estar no mesmo canal de voz do bot para usar este comando.", get_embed_color()
             ))
             return
 
         # Verifica se há uma música tocando
         if not voice_client.is_playing():
             await ctx.send(embed=self.music_manager.create_embed(
-                "Erro", "⚠️ Nenhuma música está tocando para pausar.", 0xFF0000
+                "Erro", "⚠️ Nenhuma música está tocando para pausar.", get_embed_color()
             ))
             return
 
@@ -64,7 +65,7 @@ class PauseCommand(commands.Cog):
                 await ctx.send(embed=self.music_manager.create_embed(
                     "Música Pausada",
                     f"⏸️ A música **{song_title}** foi pausada.",
-                    0xFF8000,
+                    get_embed_color(),
                     thumbnail=current_song.get('thumbnail') if current_song else None
                 ))
                 logger.info(f"Música pausada com sucesso: {song_title}")
@@ -79,14 +80,14 @@ class PauseCommand(commands.Cog):
                 await ctx.send(embed=self.music_manager.create_embed(
                     "Música Pausada",
                     f"⏸️ A música **{song_title}** foi pausada (após ignorar o erro).\n{get_config('LEMA')}",
-                    0xFF8000,
+                    get_embed_color(),
                     thumbnail=current_song.get('thumbnail') if current_song else None
                 ))
                 logger.warning(f"Erro ignorado ao pausar a música, mas o estado foi alterado: {e}")
             else:
                 logger.error(f"Erro ao tentar pausar a música: {e}")
                 await ctx.send(embed=self.music_manager.create_embed(
-                    "Erro", f"⚠️ Ocorreu um erro ao tentar pausar a música: {str(e)}", 0xFF0000
+                    "Erro", f"⚠️ Ocorreu um erro ao tentar pausar a música: {str(e)}", get_embed_color()
                 ))
 
 

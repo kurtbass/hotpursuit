@@ -1,3 +1,4 @@
+from utils.database import get_embed_color
 import discord
 import logging
 import asyncio
@@ -19,7 +20,7 @@ class LogicaEnvioHelper:
         self.bot = bot
         self.lema = lema
 
-    def create_embed(self, title, description, color=0xFF8000):
+    def create_embed(self, title, description, color=get_embed_color()):
         """
         Cria um embed padronizado com título, descrição e cor.
 
@@ -78,7 +79,7 @@ class LogicaEnvioHelper:
                         return [m for m in ctx.guild.members if cargo in m.roles] if cargo else []
                     except ValueError:
                         await ctx.send(embed=self.create_embed(
-                            "Erro", "⚠️ ID do cargo inválido. Tente novamente.", 0xFF0000
+                            "Erro", "⚠️ ID do cargo inválido. Tente novamente.", get_embed_color()
                         ))
                         continue
 
@@ -92,7 +93,7 @@ class LogicaEnvioHelper:
                         return [m for m in ctx.guild.members if m.id in ids]
                     except ValueError:
                         await ctx.send(embed=self.create_embed(
-                            "Erro", "⚠️ IDs inválidos fornecidos. Tente novamente.", 0xFF0000
+                            "Erro", "⚠️ IDs inválidos fornecidos. Tente novamente.", get_embed_color()
                         ))
                         continue
 
@@ -103,17 +104,17 @@ class LogicaEnvioHelper:
                         return [member] if member else []
                     except ValueError:
                         await ctx.send(embed=self.create_embed(
-                            "Erro", "⚠️ ID inválido. Tente novamente.", 0xFF0000
+                            "Erro", "⚠️ ID inválido. Tente novamente.", get_embed_color()
                         ))
                         continue
 
                 else:
                     await ctx.send(embed=self.create_embed(
-                        "Erro", "⚠️ Opção inválida. Por favor, escolha uma opção válida.", 0xFF0000
+                        "Erro", "⚠️ Opção inválida. Por favor, escolha uma opção válida.", get_embed_color()
                     ))
             except asyncio.TimeoutError:
                 await ctx.send(embed=self.create_embed(
-                    "Tempo Esgotado", "⚠️ Tempo esgotado para responder. Tente novamente.", 0xFF0000
+                    "Tempo Esgotado", "⚠️ Tempo esgotado para responder. Tente novamente.", get_embed_color()
                 ))
                 return []
 
@@ -153,6 +154,6 @@ class LogicaEnvioHelper:
             return response.content.strip()
         except asyncio.TimeoutError:
             await ctx.send(embed=self.create_embed(
-                "Tempo Esgotado", "⚠️ O comando foi cancelado.", 0xFF0000
+                "Tempo Esgotado", "⚠️ O comando foi cancelado.", get_embed_color()
             ))
             return None

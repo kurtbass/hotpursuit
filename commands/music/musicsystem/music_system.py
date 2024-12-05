@@ -1,3 +1,4 @@
+from utils.database import get_embed_color
 import asyncio
 import discord
 from yt_dlp import YoutubeDL
@@ -88,7 +89,7 @@ class MusicManager:
         """
         return list(self.song_history)
 
-    def create_embed(self, title, description, color=0xFF8000, banner=None, thumbnail=None):
+    def create_embed(self, title, description, color=get_embed_color(), banner=None, thumbnail=None):
         """
         Cria uma mensagem embed personalizada.
         """
@@ -103,46 +104,53 @@ class MusicManager:
         return embed
 
     async def update_bot_status(self):
-        """
-        Atualiza o status do bot com base no estado atual do MusicManager.
-        """
-        if self.current_song:
-            title = self.current_song.get('title', 'Desconhecida')
-            activity = discord.Activity(type=discord.ActivityType.listening, name=title)
-            await self.bot.change_presence(activity=activity, status=discord.Status.online)
-            logger.info(f"Status atualizado para 'Ouvindo: {title}'.")
-        elif not self.music_queue:
-            await self.restore_default_status()
-        else:
-            logger.debug("Música pausada ou aguardando próxima música na fila.")
+            """
+            Atualiza o status do bot com base no estado atual do MusicManager.
+            """
+            try:
+                if self.current_song:
+                    title = self.current_song.get('title', 'Desconhecida')
+                    activity = discord.Activity(type=discord.ActivityType.listening, name=title)
+                    await self.bot.change_presence(activity=activity, status=discord.Status.online)
+                    logger.info(f"Status atualizado para 'Ouvindo: {title}'.")
+                elif not self.music_queue:
+                    await self.restore_default_status()
+                else:
+                    logger.debug("Música pausada ou aguardando próxima música na fila.")
+            except Exception as e:
+                logger.error(f"Erro ao atualizar o status do bot: {e}")
 
     async def restore_default_status(self):
         """
         Restaura o status padrão do bot.
         """
-        status_data = get_status_by_id(self.default_status_id)
-        if status_data:
-            status_type, status_message, status_status = status_data
-            activity = None
-            if status_type == '1':  # Jogando
-                activity = discord.Game(name=status_message)
-            elif status_type == '2':  # Transmitindo
-                activity = discord.Streaming(name=status_message, url="https://www.twitch.tv/seu_canal")
-            elif status_type == '3':  # Ouvindo
-                activity = discord.Activity(type=discord.ActivityType.listening, name=status_message)
-            elif status_type == '4':  # Assistindo
-                activity = discord.Activity(type=discord.ActivityType.watching, name=status_message)
+        try:
+            status_data = get_status_by_id(self.default_status_id)
+            if status_data:
+                status_type, status_message, status_status = status_data
+                activity = None
+                if status_type == '1':  # Jogando
+                    activity = discord.Game(name=status_message)
+                elif status_type == '2':  # Transmitindo
+                    activity = discord.Streaming(name=status_message, url="https://www.twitch.tv/seu_canal")
+                elif status_type == '3':  # Ouvindo
+                    activity = discord.Activity(type=discord.ActivityType.listening, name=status_message)
+                elif status_type == '4':  # Assistindo
+                    activity = discord.Activity(type=discord.ActivityType.watching, name=status_message)
 
-            status_map = {
-                'online': discord.Status.online,
-                'dnd': discord.Status.dnd,
-                'idle': discord.Status.idle,
-                'invisible': discord.Status.invisible
-            }
-            await self.bot.change_presence(activity=activity, status=status_map.get(status_status, discord.Status.online))
-            logger.info(f"Status restaurado para o padrão: {status_message} ({status_status}).")
-        else:
-            logger.warning("Status padrão não encontrado no banco de dados.")
+                status_map = {
+                    'online': discord.Status.online,
+                    'dnd': discord.Status.dnd,
+                    'idle': discord.Status.idle,
+                    'invisible': discord.Status.invisible
+                }
+                await self.bot.change_presence(activity=activity, status=status_map.get(status_status, discord.Status.online))
+                logger.info(f"Status restaurado para o padrão: {status_message} ({status_status}).")
+            else:
+                await self.bot.change_presence(activity=None, status=discord.Status.online)
+                logger.warning("Status padrão não encontrado no banco de dados, restaurando para online padrão.")
+        except Exception as e:
+            logger.error(f"Erro ao restaurar o status padrão: {e}")
 
     async def play_next(self, ctx):
         """
@@ -175,7 +183,7 @@ class MusicManager:
                         f"**Título:** {next_song['title']}\n"
                         f"**Duração:** {self.format_duration(next_song['duration'])}\n"
                         f"**Adicionado por:** {next_song['added_by']}",
-                        0xFF8000,
+                        get_embed_color(),
                         thumbnail=next_song.get('thumbnail')
                     ))
             else:
@@ -184,7 +192,7 @@ class MusicManager:
                 await ctx.send(embed=self.create_embed(
                     "🎶 Fila Vazia",
                     "Adicione mais músicas para continuar a reprodução.",
-                    0xFF8000
+                    get_embed_color()
                 ))
                 await asyncio.sleep(5)
                 if self.voice_client:
@@ -196,7 +204,7 @@ class MusicManager:
             await ctx.send(embed=self.create_embed(
                 "Erro",
                 f"⚠️ Ocorreu um erro ao tentar reproduzir a próxima música: {str(e)}",
-                0xFF0000
+                get_embed_color()
             ))
 
     def save_current_to_history(self):

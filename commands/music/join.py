@@ -1,3 +1,4 @@
+from utils.database import get_embed_color
 import discord
 from discord.ext import commands
 
@@ -15,7 +16,7 @@ class JoinCommand(commands.Cog):
         self.bot = bot
         self.music_manager = music_manager
 
-    def create_embed(self, title, description, color=0xFF8000):
+    def create_embed(self, title, description, color=get_embed_color()):
         """
         Cria um embed padronizado com título, descrição e cor.
         """
@@ -32,7 +33,7 @@ class JoinCommand(commands.Cog):
             await ctx.send(embed=self.create_embed(
                 "Erro",
                 "⚠️ Você precisa estar em um canal de voz para usar este comando.",
-                0xFF0000
+                get_embed_color()
             ))
             return
 
@@ -43,7 +44,7 @@ class JoinCommand(commands.Cog):
             await ctx.send(embed=self.create_embed(
                 "Erro",
                 f"⚠️ Já estou conectado no canal **{current_channel}**.",
-                0xFF0000
+                get_embed_color()
             ))
             return
 
@@ -52,7 +53,7 @@ class JoinCommand(commands.Cog):
         await ctx.send(embed=self.create_embed(
             "Conectado",
             f"✅ Entrei no canal **{user_channel.name}**.",
-            0xFF8000
+            get_embed_color()
         ))
 
 

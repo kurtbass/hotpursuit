@@ -1,3 +1,4 @@
+from utils.database import get_embed_color
 import discord
 from discord.ext import commands
 import asyncio
@@ -29,7 +30,7 @@ class Reuniao(commands.Cog):
             logger.error(f"Erro ao carregar configuração '{key}': {e}")
             return None
 
-    def create_embed(self, title=None, description=None, color=0xFF8000, image_url=None):
+    def create_embed(self, title=None, description=None, color=get_embed_color(), image_url=None):
         """Cria um embed padronizado."""
         embed = discord.Embed(title=title, description=description, color=color)
         embed.set_footer(text=self.lema)
@@ -37,7 +38,7 @@ class Reuniao(commands.Cog):
             embed.set_image(url=image_url)
         return embed
 
-    async def safe_send_embed(self, ctx, description, color=0xFF8000):
+    async def safe_send_embed(self, ctx, description, color=get_embed_color()):
         """Envia um embed padronizado."""
         embed = self.create_embed(description=description, color=color)
         await ctx.send(embed=embed)
@@ -46,11 +47,11 @@ class Reuniao(commands.Cog):
     async def reuniao(self, ctx):
         """Comando principal para criar reuniões."""
         if self.em_execucao:
-            await self.safe_send_embed(ctx, "⚠️ Já existe uma reunião em execução. Aguarde até que finalize.", color=0xFF0000)
+            await self.safe_send_embed(ctx, "⚠️ Já existe uma reunião em execução. Aguarde até que finalize.", color=get_embed_color())
             return
 
         if not self.tag_staff:
-            await self.safe_send_embed(ctx, "⚠️ Nenhum cargo STAFF foi configurado. Procure o programador.", color=0xFF0000)
+            await self.safe_send_embed(ctx, "⚠️ Nenhum cargo STAFF foi configurado. Procure o programador.", color=get_embed_color())
             return
 
         self.em_execucao = True
@@ -75,7 +76,7 @@ class Reuniao(commands.Cog):
             if await self.safe_confirm(ctx, "Deseja incluir um banner na mensagem?"):
                 banner_url = await self.safe_ask_image(ctx)
 
-            cor_embed = 0xFF8000
+            cor_embed = get_embed_color()
             if await self.safe_confirm(ctx, "Deseja mudar a cor da embed?"):
                 cor_embed = await self.safe_ask_color(ctx)
 
@@ -91,18 +92,18 @@ class Reuniao(commands.Cog):
 
             # Confirmar envio
             if not await self.safe_confirm(ctx, "A mensagem está correta?"):
-                await self.safe_send_embed(ctx, "⚠️ Cancelando o comando. Corrija as informações e tente novamente.", color=0xFF0000)
+                await self.safe_send_embed(ctx, "⚠️ Cancelando o comando. Corrija as informações e tente novamente.", color=get_embed_color())
                 return
 
             # Selecionar destinatários
             destinatarios = await self.safe_select_recipients(ctx)
             if not destinatarios:
-                await self.safe_send_embed(ctx, "⚠️ Nenhum destinatário foi selecionado. Comando cancelado.", color=0xFF0000)
+                await self.safe_send_embed(ctx, "⚠️ Nenhum destinatário foi selecionado. Comando cancelado.", color=get_embed_color())
                 return
 
             # Enviar mensagens
             enviadas, erros = await self.safe_send_messages(destinatarios, embed)
-            await self.safe_send_embed(ctx, f"✅ Reunião enviada para {enviadas} membros. Erros: {erros}.", color=0x00FF00)
+            await self.safe_send_embed(ctx, f"✅ Reunião enviada para {enviadas} membros. Erros: {erros}.", color=get_embed_color())
 
         finally:
             self.em_execucao = False
@@ -118,7 +119,7 @@ class Reuniao(commands.Cog):
             )
             return response.content
         except asyncio.TimeoutError:
-            await self.safe_send_embed(ctx, "⚠️ Tempo esgotado. O comando foi cancelado.", color=0xFF0000)
+            await self.safe_send_embed(ctx, "⚠️ Tempo esgotado. O comando foi cancelado.", color=get_embed_color())
             return None
 
     async def safe_confirm(self, ctx, message):
@@ -140,17 +141,17 @@ class Reuniao(commands.Cog):
             elif response.content.startswith("http"):
                 return response.content
         except asyncio.TimeoutError:
-            await self.safe_send_embed(ctx, "⚠️ Tempo esgotado. O comando foi cancelado.", color=0xFF0000)
+            await self.safe_send_embed(ctx, "⚠️ Tempo esgotado. O comando foi cancelado.", color=get_embed_color())
             return None
 
     async def safe_ask_color(self, ctx):
         """Solicita uma cor para a embed."""
-        response = await self.safe_ask_question(ctx, "Digite o código hexadecimal da cor (Ex: FF8000):")
+        response = await self.safe_ask_question(ctx, "Digite o código hexadecimal da cor (Ex: get_embed_color()):")
         try:
             return int(response.lstrip("#"), 16)
         except ValueError:
-            await self.safe_send_embed(ctx, "⚠️ Código de cor inválido. Usando cor padrão.", color=0xFF0000)
-            return 0xFF8000
+            await self.safe_send_embed(ctx, "⚠️ Código de cor inválido. Usando cor padrão.", color=get_embed_color())
+            return get_embed_color()
 
     async def safe_select_recipients(self, ctx):
         """Seleciona destinatários da reunião."""
@@ -201,7 +202,7 @@ class Reuniao(commands.Cog):
                 else:
                     await self.safe_send_embed(ctx, "⚠️ Opção inválida. Escolha novamente.")
             except asyncio.TimeoutError:
-                await self.safe_send_embed(ctx, "⚠️ Tempo esgotado. O comando foi cancelado.", color=0xFF0000)
+                await self.safe_send_embed(ctx, "⚠️ Tempo esgotado. O comando foi cancelado.", color=get_embed_color())
                 return []
 
     async def safe_send_messages(self, members, embed):

@@ -1,3 +1,4 @@
+from utils.database import get_embed_color
 from asyncio.log import logger
 import yt_dlp as youtube_dl
 from yt_dlp import YoutubeDL
@@ -44,7 +45,7 @@ async def insert_music(ctx, query, music_manager, ydl_opts):
             f"**Título:** {song['title']}\n"
             f"**Duração:** {song['duration'] // 60}:{str(song['duration'] % 60).zfill(2)}\n"
             f"**Adicionado por:** {ctx.author.mention}",
-            0x00FF00
+            get_embed_color()
         ))
 
         # Log para depuração
@@ -55,7 +56,7 @@ async def insert_music(ctx, query, music_manager, ydl_opts):
         await ctx.send(embed=music_manager.create_embed(
             "Erro",
             "⚠️ Não foi possível processar a música devido a um erro de download.",
-            0xFF0000
+            get_embed_color()
         ))
 
     except Exception as e:
@@ -63,5 +64,5 @@ async def insert_music(ctx, query, music_manager, ydl_opts):
         await ctx.send(embed=music_manager.create_embed(
             "Erro",
             "⚠️ Ocorreu um erro inesperado ao adicionar a música à fila.",
-            0xFF0000
+            get_embed_color()
         ))

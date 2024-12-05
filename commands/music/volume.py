@@ -1,3 +1,4 @@
+from utils.database import get_embed_color
 import discord
 from discord.ext import commands
 from utils.database import set_user_volume, get_user_volume
@@ -26,7 +27,7 @@ class VolumeCommand(commands.Cog):
             await ctx.send(embed=discord.Embed(
                 title="Erro",
                 description="⚠️ O bot não está conectado a nenhum canal de voz.",
-                color=0xFF0000
+                color=get_embed_color()
             ))
             return
 
@@ -36,7 +37,7 @@ class VolumeCommand(commands.Cog):
             await ctx.send(embed=discord.Embed(
                 title="🔊 Volume Atual",
                 description=f"O volume atual é **{int(current_volume)}%**.",
-                color=0xFF8000
+                color=get_embed_color()
             ))
             return
 
@@ -45,7 +46,7 @@ class VolumeCommand(commands.Cog):
             await ctx.send(embed=discord.Embed(
                 title="Erro",
                 description="⚠️ O volume deve estar entre 0 e 100.",
-                color=0xFF0000
+                color=get_embed_color()
             ))
             return
 
@@ -63,7 +64,7 @@ class VolumeCommand(commands.Cog):
         await ctx.send(embed=discord.Embed(
             title="🔊 Volume Ajustado",
             description=f"O volume foi ajustado para **{volume}%**.",
-            color=0xFF8000
+            color=get_embed_color()
         ))
 
 

@@ -1,3 +1,4 @@
+from utils.database import get_embed_color
 import discord
 from discord.ext import commands
 import aiohttp
@@ -37,7 +38,7 @@ class AvatarCommand(commands.Cog):
             embed = discord.Embed(
                 title="❌ Permissão Negada",
                 description="Você não tem permissão para alterar o avatar do bot.",
-                color=0xff8000
+                color=get_embed_color()
             )
             embed.set_footer(text=self.lema)
             await ctx.send(embed=embed)
@@ -47,7 +48,7 @@ class AvatarCommand(commands.Cog):
         embed = discord.Embed(
             title="🖼️ Atualizar Avatar",
             description="Envie o arquivo da imagem ou um link válido.",
-            color=0xff8000
+            color=get_embed_color()
         )
         embed.set_footer(text=self.lema)
         await ctx.send(embed=embed)
@@ -77,7 +78,7 @@ class AvatarCommand(commands.Cog):
             embed = discord.Embed(
                 title="✅ Avatar Atualizado",
                 description="A imagem de perfil do bot foi alterada com sucesso!",
-                color=0xff8000
+                color=get_embed_color()
             )
             embed.set_footer(text=self.lema)
             await ctx.send(embed=embed)
@@ -86,7 +87,7 @@ class AvatarCommand(commands.Cog):
             embed = discord.Embed(
                 title="❌ Erro no Avatar",
                 description="Erro ao alterar o avatar. Certifique-se de que a imagem atende aos requisitos de tamanho e formato.",
-                color=0xff8000
+                color=get_embed_color()
             )
             embed.set_footer(text=self.lema)
             await ctx.send(embed=embed)
@@ -95,7 +96,7 @@ class AvatarCommand(commands.Cog):
             embed = discord.Embed(
                 title="❌ Erro Inesperado",
                 description="Ocorreu um erro inesperado ao tentar alterar o avatar. Tente novamente mais tarde.",
-                color=0xff8000
+                color=get_embed_color()
             )
             embed.set_footer(text=self.lema)
             await ctx.send(embed=embed)

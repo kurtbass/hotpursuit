@@ -1,3 +1,4 @@
+from utils.database import get_embed_color
 import discord
 from discord.ext import commands
 import asyncio
@@ -27,13 +28,13 @@ class StatusCommand(commands.Cog):
             logger.error(f"Erro ao carregar configuração '{key}': {e}")
             return None
 
-    def create_embed(self, title, description, color=0xFF8000):
+    def create_embed(self, title, description, color=get_embed_color()):
         """Cria um embed padronizado com o lema."""
         embed = discord.Embed(title=title, description=description, color=color)
         embed.set_footer(text=self.lema)
         return embed
 
-    async def send_embed(self, ctx, title, description, color=0xFF8000):
+    async def send_embed(self, ctx, title, description, color=get_embed_color()):
         """Envia um embed padronizado."""
         embed = self.create_embed(title, description, color)
         return await ctx.send(embed=embed)
@@ -44,14 +45,14 @@ class StatusCommand(commands.Cog):
             return await self.bot.wait_for("message", timeout=self.timeout, check=check)
         except asyncio.TimeoutError:
             if error_message:
-                await self.send_embed(ctx, "Tempo Esgotado", error_message, 0xFF0000)
+                await self.send_embed(ctx, "Tempo Esgotado", error_message, get_embed_color())
             return None
 
     async def validate_choice(self, ctx, response, valid_choices, choice_type):
         """Valida escolhas do usuário."""
         choice = response.content.strip()
         if choice not in valid_choices:
-            await self.send_embed(ctx, "Erro", f"Escolha inválida. {choice_type} disponíveis: {', '.join(valid_choices)}.", 0xFF0000)
+            await self.send_embed(ctx, "Erro", f"Escolha inválida. {choice_type} disponíveis: {', '.join(valid_choices)}.", get_embed_color())
             return None
         return choice
 
@@ -59,7 +60,7 @@ class StatusCommand(commands.Cog):
     async def status(self, ctx):
         """Comando para alterar o status do bot e salvar no banco."""
         if ctx.author.id not in self.allowed_ids:
-            await self.send_embed(ctx, "Sem Permissão", f"{ctx.author.mention}, você não tem permissão para usar este comando.", 0xFF0000)
+            await self.send_embed(ctx, "Sem Permissão", f"{ctx.author.mention}, você não tem permissão para usar este comando.", get_embed_color())
             return
 
         def check(message):
@@ -122,16 +123,16 @@ class StatusCommand(commands.Cog):
             logger.info(f"Status atualizado na linha 2: {status_message} ({discord_status})")
         except Exception as e:
             logger.error(f"Erro ao salvar status no banco de dados: {e}")
-            await self.send_embed(ctx, "Erro", "Ocorreu um erro ao salvar o status no banco de dados.", 0xFF0000)
+            await self.send_embed(ctx, "Erro", "Ocorreu um erro ao salvar o status no banco de dados.", get_embed_color())
             return
 
         # Aplicar status
         try:
             await self.bot.change_presence(activity=activity, status=discord_status)
-            await self.send_embed(ctx, "Status Atualizado", f"Novo status definido como:\n**{status_message}**", 0x00FF00)
+            await self.send_embed(ctx, "Status Atualizado", f"Novo status definido como:\n**{status_message}**", get_embed_color())
         except Exception as e:
             logger.error(f"Erro ao alterar o status do bot: {e}")
-            await self.send_embed(ctx, "Erro", "Ocorreu um erro ao tentar alterar o status.", 0xFF0000)
+            await self.send_embed(ctx, "Erro", "Ocorreu um erro ao tentar alterar o status.", get_embed_color())
 
 
 async def setup(bot):

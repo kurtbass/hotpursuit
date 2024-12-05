@@ -1,3 +1,4 @@
+from utils.database import get_config, get_embed_color
 import asyncio
 import discord
 from discord.ext import commands
@@ -15,12 +16,12 @@ class QueueCommand(commands.Cog):
         self.bot = bot
         self.music_manager = music_manager  # Gerenciador centralizado de músicas
 
-    def create_embed(self, title, description, color=0xFF8000):
+    def create_embed(self, title, description, color=get_embed_color()):
         """
         Cria um embed padronizado com título, descrição e cor.
         """
         embed = discord.Embed(title=title, description=description, color=color)
-        embed.set_footer(text="Hot Pursuit - Potência e Precisão, Sempre na Frente.")
+        embed.set_footer(text=get_config("LEMA"))
         return embed
 
     @commands.command(name="queue", aliases=["fila", "lista", "q"])
@@ -31,7 +32,7 @@ class QueueCommand(commands.Cog):
         # Verifica se o autor está no mesmo canal que o bot
         if not ctx.author.voice or self.music_manager.voice_client is None or ctx.author.voice.channel != self.music_manager.voice_client.channel:
             await ctx.send(embed=self.create_embed(
-                "Erro", "⚠️ Você precisa estar no mesmo canal de voz do bot para usar este comando.", 0xFF0000
+                "Erro", "⚠️ Você precisa estar no mesmo canal de voz do bot para usar este comando.", get_embed_color()
             ))
             return
 
@@ -39,7 +40,7 @@ class QueueCommand(commands.Cog):
         if args and args[0].lower() in ["limpar", "clear", "clean"]:
             self.music_manager.clear_queue()
             await ctx.send(embed=self.create_embed(
-                "Fila Limpa", "✅ A fila de músicas foi limpa com sucesso.", 0x00FF00
+                "Fila Limpa", "✅ A fila de músicas foi limpa com sucesso.", get_embed_color()
             ))
             return
 
@@ -48,7 +49,7 @@ class QueueCommand(commands.Cog):
             page = int(args[0]) if args else 1
         except ValueError:
             await ctx.send(embed=self.create_embed(
-                "Erro", "⚠️ O argumento fornecido não é um número válido ou um comando reconhecido.", 0xFF0000
+                "Erro", "⚠️ O argumento fornecido não é um número válido ou um comando reconhecido.", get_embed_color()
             ))
             return
 
@@ -56,7 +57,7 @@ class QueueCommand(commands.Cog):
 
         if not music_queue:
             await ctx.send(embed=self.create_embed(
-                "Fila de Músicas", "⚠️ A fila está vazia.", 0xFF0000
+                "Fila de Músicas", "⚠️ A fila está vazia.", get_embed_color()
             ))
             return
 
@@ -65,7 +66,7 @@ class QueueCommand(commands.Cog):
         total_pages = math.ceil(len(music_queue) / items_per_page)
         if page < 1 or page > total_pages:
             await ctx.send(embed=self.create_embed(
-                "Erro", f"⚠️ Página inválida. Escolha um número entre 1 e {total_pages}.", 0xFF0000
+                "Erro", f"⚠️ Página inválida. Escolha um número entre 1 e {total_pages}.", get_embed_color()
             ))
             return
 
@@ -88,9 +89,9 @@ class QueueCommand(commands.Cog):
         embed = self.create_embed(
             title="🎶 Fila de Reprodução",
             description=generate_page_description(page),
-            color=0xFF8000
+            color=get_embed_color()
         )
-        embed.set_footer(text=f"Página {page}/{total_pages} | Hot Pursuit - Potência e Precisão, Sempre na Frente.")
+        embed.set_footer(text=f"Página {page}/{total_pages} | {get_config("LEMA")}")
         message = await ctx.send(embed=embed)
 
         # Adicionar reações para navegação
@@ -118,7 +119,7 @@ class QueueCommand(commands.Cog):
 
                 # Atualizar embed com a nova página
                 embed.description = generate_page_description(page)
-                embed.set_footer(text=f"Página {page}/{total_pages} | Hot Pursuit - Potência e Precisão, Sempre na Frente.")
+                embed.set_footer(text=f"Página {page}/{total_pages} | {get_config("LEMA")}")
                 await message.edit(embed=embed)
 
                 # Remove a reação do usuário

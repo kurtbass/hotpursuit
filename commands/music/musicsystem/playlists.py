@@ -1,3 +1,4 @@
+from utils.database import get_embed_color
 from yt_dlp import YoutubeDL
 from asyncio.log import logger
 import asyncio
@@ -60,7 +61,7 @@ async def process_playlist(ctx, playlist_url, music_manager, ydl_opts, from_db=F
                 f"**Quantidade de Músicas:** {valid_songs}\n"
                 f"**Duração Total:** {total_duration // 3600}:{(total_duration % 3600) // 60:02}:{total_duration % 60:02}\n"
                 f"**Adicionada por:** {ctx.author.mention}",
-                0xFF8000
+                get_embed_color()
             )
             if playlist_thumbnail:
                 embed.set_image(url=playlist_thumbnail)
@@ -72,7 +73,7 @@ async def process_playlist(ctx, playlist_url, music_manager, ydl_opts, from_db=F
             await ctx.send(embed=music_manager.create_embed(
                 "Erro",
                 f"⚠️ Ocorreu um erro ao processar a playlist: {str(e)}",
-                0xFF0000
+                get_embed_color()
             ))
 
 
@@ -91,7 +92,7 @@ async def play_song(ctx, music_manager, ydl_opts):
             await ctx.send(embed=music_manager.create_embed(
                 "🎶 Fila Vazia",
                 "Adicione mais músicas para continuar a reprodução.",
-                0xFF8000
+                get_embed_color()
             ))
             await asyncio.sleep(5)
             if music_manager.voice_client:
@@ -125,7 +126,7 @@ async def play_song(ctx, music_manager, ydl_opts):
             f"**Título:** {current_song.get('title', 'Título desconhecido')}\n"
             f"**Duração:** {current_song.get('duration', 0)} segundos\n"
             f"**Adicionado por:** {current_song.get('added_by', 'Desconhecido')}",
-            0xFF8000
+            get_embed_color()
         ))
 
     except Exception as e:
@@ -133,5 +134,5 @@ async def play_song(ctx, music_manager, ydl_opts):
         await ctx.send(embed=music_manager.create_embed(
             "Erro",
             f"⚠️ Ocorreu um erro ao reproduzir a música: {str(e)}",
-            0xFF0000
+            get_embed_color()
         ))

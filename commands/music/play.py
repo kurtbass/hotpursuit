@@ -1,3 +1,4 @@
+from utils.database import get_embed_color
 import logging
 from discord.ext import commands
 from commands.music.musicsystem.insert import insert_music
@@ -44,7 +45,7 @@ class PlayCommand(commands.Cog):
                 f"- `{get_config('PREFIXO')}play https://youtube.com/watch?v=xxxxxx`\n"
                 f"- `{get_config('PREFIXO')}play Nome da Música`\n"
                 f"- `{get_config('PREFIXO')}play https://youtube.com/playlist?list=xxxxxx`\n",
-                0xFF8000  # Cor do embed
+                get_embed_color()  # Cor do embed
             ))
             return
 
@@ -71,7 +72,7 @@ class PlayCommand(commands.Cog):
             # Caso ocorra algum erro ao tentar reproduzir a música
             logger.error(f"Erro ao tentar reproduzir música ou playlist: {e}")
             await ctx.send(embed=self.music_manager.create_embed(
-                "Erro", f"⚠️ Ocorreu um erro ao tentar tocar a música.\n{str(e)}", 0xFF0000  # Cor do erro
+                "Erro", f"⚠️ Ocorreu um erro ao tentar tocar a música.\n{str(e)}", get_embed_color()  # Cor do erro
             ))
 
 async def setup(bot, music_manager):

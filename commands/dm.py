@@ -1,3 +1,4 @@
+from utils.database import get_embed_color
 import discord
 from discord.ext import commands
 import asyncio
@@ -14,7 +15,7 @@ class DirectMessageCommand(commands.Cog):
         self.bot = bot
         self.staff_role_id = self.safe_get_config("TAG_STAFF", is_int=True)
         self.lema = get_config("LEMA") or "LEMA NÃO CARREGADO, PROCURE O PROGRAMADOR DO BOT"
-        self.default_color = 0xFF8000
+        self.default_color = get_embed_color()
 
     def safe_get_config(self, key, is_int=False):
         """Obtém uma configuração do banco de forma segura."""
@@ -50,7 +51,7 @@ class DirectMessageCommand(commands.Cog):
             await ctx.send(
                 embed=self.create_embed(
                     description=f"{ctx.author.mention}, o tempo para responder expirou. O comando foi cancelado.",
-                    color=0xFF0000,
+                    color=get_embed_color(),
                 )
             )
             return None
@@ -79,7 +80,7 @@ class DirectMessageCommand(commands.Cog):
             logger.error(f"Erro ao buscar destinatário: {e}")
             await ctx.send(embed=self.create_embed(
                 description="Erro ao tentar localizar o destinatário. Tente novamente.",
-                color=0xFF0000
+                color=get_embed_color()
             ))
             return None
 
@@ -93,14 +94,14 @@ class DirectMessageCommand(commands.Cog):
             await ctx.send(
                 embed=self.create_embed(
                     description=f"A mensagem foi enviada com sucesso para {recipient.mention}.",
-                    color=0x00FF00,
+                    color=get_embed_color(),
                 )
             )
         except discord.Forbidden:
             await ctx.send(
                 embed=self.create_embed(
                     description="⚠️ Não foi possível enviar a mensagem. O destinatário pode ter desativado mensagens privadas.",
-                    color=0xFF0000,
+                    color=get_embed_color(),
                 )
             )
         except Exception as e:
@@ -108,7 +109,7 @@ class DirectMessageCommand(commands.Cog):
             await ctx.send(
                 embed=self.create_embed(
                     description="⚠️ Ocorreu um erro inesperado ao tentar enviar a mensagem.",
-                    color=0xFF0000,
+                    color=get_embed_color(),
                 )
             )
 
@@ -120,7 +121,7 @@ class DirectMessageCommand(commands.Cog):
             await ctx.send(
                 embed=self.create_embed(
                     description="⚠️ Você não tem permissão para usar este comando.",
-                    color=0xFF0000,
+                    color=get_embed_color(),
                 )
             )
             return
@@ -136,7 +137,7 @@ class DirectMessageCommand(commands.Cog):
             await ctx.send(
                 embed=self.create_embed(
                     description="⚠️ Destinatário não encontrado. Verifique o nome ou ID fornecido.",
-                    color=0xFF0000,
+                    color=get_embed_color(),
                 )
             )
             return
@@ -147,7 +148,7 @@ class DirectMessageCommand(commands.Cog):
             await ctx.send(
                 embed=self.create_embed(
                     description="⚠️ Tipo de mensagem inválido. O comando foi cancelado.",
-                    color=0xFF0000,
+                    color=get_embed_color(),
                 )
             )
             return
@@ -163,7 +164,7 @@ class DirectMessageCommand(commands.Cog):
         elif message_type.lower() == "embed":
             title = await self.safe_ask_question(ctx, "Digite o título da mensagem.")
             description = await self.safe_ask_question(ctx, "Digite o conteúdo da mensagem.")
-            color_input = await self.safe_ask_question(ctx, "Digite a cor do embed (Exemplo: FF0000 ou #FF0000).")
+            color_input = await self.safe_ask_question(ctx, "Digite a cor do embed (Exemplo: get_embed_color() ou #get_embed_color()).")
 
             include_banner = await self.safe_ask_question(ctx, "Deseja incluir um banner na mensagem? Responda com `sim` ou `não`.")
             banner_url = None

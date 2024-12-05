@@ -1,3 +1,4 @@
+from utils.database import get_embed_color
 import discord
 from discord.ext import commands
 import logging
@@ -25,21 +26,21 @@ class ResumeCommand(commands.Cog):
         # Verificar conexão com canal de voz
         if voice_client is None or not voice_client.is_connected():
             await ctx.send(embed=self.music_manager.create_embed(
-                "Erro", "⚠️ O bot não está conectado a nenhum canal de voz.", 0xFF0000
+                "Erro", "⚠️ O bot não está conectado a nenhum canal de voz.", get_embed_color()
             ))
             return
 
         # Verificar se o usuário está no mesmo canal
         if not ctx.author.voice or ctx.author.voice.channel != voice_client.channel:
             await ctx.send(embed=self.music_manager.create_embed(
-                "Erro", "⚠️ Você precisa estar no mesmo canal de voz do bot para usar este comando.", 0xFF0000
+                "Erro", "⚠️ Você precisa estar no mesmo canal de voz do bot para usar este comando.", get_embed_color()
             ))
             return
 
         # Verificar se há música pausada
         if not voice_client.is_paused():
             await ctx.send(embed=self.music_manager.create_embed(
-                "Erro", "⚠️ Nenhuma música está pausada para retomar.", 0xFF0000
+                "Erro", "⚠️ Nenhuma música está pausada para retomar.", get_embed_color()
             ))
             return
 
@@ -48,13 +49,13 @@ class ResumeCommand(commands.Cog):
             voice_client.resume()
             self.music_manager.current_song['status'] = 'playing'  # Atualizar o estado da música no MusicManager
             await ctx.send(embed=self.music_manager.create_embed(
-                "Música Retomada", "▶️ A música pausada foi retomada.", 0x00FF00
+                "Música Retomada", "▶️ A música pausada foi retomada.", get_embed_color()
             ))
             logger.info("Música retomada com sucesso.")
         except Exception as e:
             logger.error(f"Erro ao tentar retomar a música: {e}")
             await ctx.send(embed=self.music_manager.create_embed(
-                "Erro", "⚠️ Ocorreu um erro ao tentar retomar a música.", 0xFF0000
+                "Erro", "⚠️ Ocorreu um erro ao tentar retomar a música.", get_embed_color()
             ))
 
 

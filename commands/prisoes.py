@@ -1,6 +1,7 @@
+from utils.database import get_embed_color
 import discord
 from discord.ext import commands
-from utils.database import execute_query, get_config
+from utils.database import execute_query, get_config, get_embed_color
 import logging
 
 logger = logging.getLogger(__name__)
@@ -11,7 +12,7 @@ class PrisoesCommand(commands.Cog):
         self.tag_membro = int(get_config("TAG_MEMBRO") or 0)
         self.lema = get_config("LEMA") or "LEMA NÃO CARREGADO, PROCURE O PROGRAMADOR DO BOT"
 
-    def create_embed(self, title, description, color=0xFF8000):
+    def create_embed(self, title, description, color=get_embed_color()):
         """Cria um embed padronizado."""
         embed = discord.Embed(title=title, description=description, color=color)
         embed.set_footer(text=self.lema)
@@ -24,7 +25,7 @@ class PrisoesCommand(commands.Cog):
             await ctx.send(embed=self.create_embed(
                 "Sem Permissão",
                 "⚠️ Você não tem permissão para usar este comando.",
-                0xFF0000
+                get_embed_color()
             ))
             return False
         return True
@@ -59,20 +60,20 @@ class PrisoesCommand(commands.Cog):
             await ctx.send(embed=self.create_embed(
                 "Sucesso",
                 f"✅ Registro salvo: Você tem **{prisao_count} prisões**.",
-                0x00FF00
+                get_embed_color()
             ))
         except ValueError:
             await ctx.send(embed=self.create_embed(
                 "Erro",
                 "⚠️ Por favor, insira um número válido.",
-                0xFF0000
+                get_embed_color()
             ))
         except Exception as e:
             logger.error(f"Erro ao registrar prisões: {e}")
             await ctx.send(embed=self.create_embed(
                 "Erro",
                 "⚠️ Ocorreu um erro ao salvar suas informações. Tente novamente mais tarde.",
-                0xFF0000
+                get_embed_color()
             ))
 
 

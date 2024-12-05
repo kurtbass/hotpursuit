@@ -1,3 +1,4 @@
+from utils.database import get_embed_color
 import discord
 import logging
 
@@ -22,7 +23,7 @@ class PermissoesHelper:
         self.tag_membro = tag_membro
         self.lema = lema
 
-    def create_embed(self, title, description, color=0xFF8000):
+    def create_embed(self, title, description, color=get_embed_color()):
         """
         Cria um embed padronizado com título, descrição e cor.
 
@@ -46,7 +47,7 @@ class PermissoesHelper:
         if not self.tag_staff:
             logger.warning("Nenhum cargo de STAFF configurado no banco de dados.")
             await ctx.send(embed=self.create_embed(
-                "Erro", "⚠️ Nenhum cargo STAFF configurado. Procure o programador.", 0xFF0000
+                "Erro", "⚠️ Nenhum cargo STAFF configurado. Procure o programador.", get_embed_color()
             ))
             return False
 
@@ -54,7 +55,7 @@ class PermissoesHelper:
         if not any(role.id == self.tag_staff for role in ctx.author.roles):
             logger.warning(f"Usuário {ctx.author} tentou usar o comando sem permissão.")
             await ctx.send(embed=self.create_embed(
-                "Sem Permissão", "⚠️ Você não tem permissão para executar este comando.", 0xFF0000
+                "Sem Permissão", "⚠️ Você não tem permissão para executar este comando.", get_embed_color()
             ))
             return False
 

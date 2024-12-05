@@ -1,3 +1,4 @@
+from utils.database import get_embed_color
 import discord
 from discord.ext import commands
 import asyncio
@@ -31,13 +32,13 @@ class UsernameCommand(commands.Cog):
             logger.error(f"Erro ao carregar configuração '{key}': {e}")
             return None
 
-    def create_embed(self, title, description, color=0xFF8000):
+    def create_embed(self, title, description, color=get_embed_color()):
         """Cria um embed padronizado com o lema."""
         embed = discord.Embed(title=title, description=description, color=color)
         embed.set_footer(text=self.lema)
         return embed
 
-    async def send_embed(self, ctx, title, description, color=0xFF8000):
+    async def send_embed(self, ctx, title, description, color=get_embed_color()):
         """Utilitário para enviar mensagens embed."""
         embed = self.create_embed(title, description, color)
         await ctx.send(embed=embed)
@@ -56,7 +57,7 @@ class UsernameCommand(commands.Cog):
     async def username(self, ctx, *, new_name=None):
         """Comando para alterar o nome do bot."""
         if ctx.author.id not in self.allowed_ids:
-            await self.send_embed(ctx, "Sem Permissão", f"{ctx.author.mention}, você não tem permissão para usar este comando.", 0xFF0000)
+            await self.send_embed(ctx, "Sem Permissão", f"{ctx.author.mention}, você não tem permissão para usar este comando.", get_embed_color())
             logger.warning(f"Usuário {ctx.author} tentou alterar o nome do bot sem permissão.")
             return
 
@@ -71,30 +72,30 @@ class UsernameCommand(commands.Cog):
                 new_name = msg.content.strip()
                 await msg.delete()  # Remove a mensagem do usuário
             except asyncio.TimeoutError:
-                await self.send_embed(ctx, "Tempo Esgotado", f"{ctx.author.mention}, o tempo para enviar o novo nome expirou. O comando foi cancelado.", 0xFF0000)
+                await self.send_embed(ctx, "Tempo Esgotado", f"{ctx.author.mention}, o tempo para enviar o novo nome expirou. O comando foi cancelado.", get_embed_color())
                 logger.warning(f"Tempo esgotado para resposta do comando 'username' de {ctx.author}.")
                 return
 
         # Validar novo nome
         is_valid, error_message = self.validate_username(new_name)
         if not is_valid:
-            await self.send_embed(ctx, "Erro", f"{ctx.author.mention}, {error_message}", 0xFF0000)
+            await self.send_embed(ctx, "Erro", f"{ctx.author.mention}, {error_message}", get_embed_color())
             logger.warning(f"Nome inválido '{new_name}' fornecido por {ctx.author} no comando 'username'.")
             return
 
         # Tentar alterar o nome
         try:
             await self.bot.user.edit(username=new_name)
-            await self.send_embed(ctx, "Nome do Bot Alterado", f"{ctx.author.mention}, o nome do bot foi alterado para `{new_name}` com sucesso!", 0x00FF00)
+            await self.send_embed(ctx, "Nome do Bot Alterado", f"{ctx.author.mention}, o nome do bot foi alterado para `{new_name}` com sucesso!", get_embed_color())
             logger.info(f"Nome do bot alterado para '{new_name}' por {ctx.author} ({ctx.author.id}).")
         except discord.Forbidden:
-            await self.send_embed(ctx, "Erro", f"{ctx.author.mention}, o bot não tem permissão para alterar o nome.", 0xFF0000)
+            await self.send_embed(ctx, "Erro", f"{ctx.author.mention}, o bot não tem permissão para alterar o nome.", get_embed_color())
             logger.error(f"Permissões insuficientes para alterar o nome do bot. Usuário: {ctx.author} ({ctx.author.id}).")
         except discord.HTTPException as e:
-            await self.send_embed(ctx, "Erro", f"{ctx.author.mention}, ocorreu um erro ao alterar o nome do bot. Tente novamente mais tarde.", 0xFF0000)
+            await self.send_embed(ctx, "Erro", f"{ctx.author.mention}, ocorreu um erro ao alterar o nome do bot. Tente novamente mais tarde.", get_embed_color())
             logger.error(f"Erro de API ao alterar o nome do bot: {e}")
         except Exception as e:
-            await self.send_embed(ctx, "Erro", f"{ctx.author.mention}, ocorreu um erro inesperado: {e}", 0xFF0000)
+            await self.send_embed(ctx, "Erro", f"{ctx.author.mention}, ocorreu um erro inesperado: {e}", get_embed_color())
             logger.error(f"Erro inesperado ao alterar o nome do bot: {e}")
 
 

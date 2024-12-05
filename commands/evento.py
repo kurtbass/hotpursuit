@@ -1,3 +1,4 @@
+from utils.database import get_embed_color
 import discord
 from discord.ext import commands
 import logging
@@ -47,7 +48,7 @@ class Evento(commands.Cog):
         """Comando principal para criar e enviar um evento."""
         if self.em_execucao:
             await ctx.send(embed=self.perguntas_helper.create_embed(
-                "Erro", "⚠️ Já existe um evento em execução. Aguarde até que finalize.", 0xFF0000
+                "Erro", "⚠️ Já existe um evento em execução. Aguarde até que finalize.", get_embed_color()
             ))
             return
 
@@ -75,7 +76,7 @@ class Evento(commands.Cog):
             # Confirmar envio
             if not await self.perguntas_helper.confirm_action(ctx, "A mensagem está correta?"):
                 await ctx.send(embed=self.perguntas_helper.create_embed(
-                    "Cancelado", "⚠️ Cancelando o comando. Corrija as informações e tente novamente.", 0xFF0000
+                    "Cancelado", "⚠️ Cancelando o comando. Corrija as informações e tente novamente.", get_embed_color()
                 ))
                 return
 
@@ -83,14 +84,14 @@ class Evento(commands.Cog):
             destinatarios = await self.logicadeenvio_helper.select_recipients(ctx, self.tag_staff, self.tag_membro)
             if not destinatarios:
                 await ctx.send(embed=self.perguntas_helper.create_embed(
-                    "Cancelado", "⚠️ Nenhum destinatário foi selecionado. Comando cancelado.", 0xFF0000
+                    "Cancelado", "⚠️ Nenhum destinatário foi selecionado. Comando cancelado.", get_embed_color()
                 ))
                 return
 
             # Enviar evento
             enviadas, erros = await self.logicadeenvio_helper.send_event(destinatarios, embed)
             await ctx.send(embed=self.perguntas_helper.create_embed(
-                "Sucesso", f"✅ Evento enviado para {enviadas} membros. Erros: {erros}.", 0x00FF00
+                "Sucesso", f"✅ Evento enviado para {enviadas} membros. Erros: {erros}.", get_embed_color()
             ))
         finally:
             self.em_execucao = False
