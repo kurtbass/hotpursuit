@@ -89,10 +89,13 @@ class MusicManager:
         """
         return list(self.song_history)
 
-    def create_embed(self, title, description, color=get_embed_color(), banner=None, thumbnail=None):
+    def create_embed(self, title, description, color=None, banner=None, thumbnail=None):
         """
         Cria uma mensagem embed personalizada.
         """
+        if color is None:
+            color = get_embed_color()
+        
         embed = discord.Embed(title=title, description=description, color=color)
         embed.set_footer(text=get_config("LEMA"))
 
@@ -104,21 +107,21 @@ class MusicManager:
         return embed
 
     async def update_bot_status(self):
-            """
-            Atualiza o status do bot com base no estado atual do MusicManager.
-            """
-            try:
-                if self.current_song:
-                    title = self.current_song.get('title', 'Desconhecida')
-                    activity = discord.Activity(type=discord.ActivityType.listening, name=title)
-                    await self.bot.change_presence(activity=activity, status=discord.Status.online)
-                    logger.info(f"Status atualizado para 'Ouvindo: {title}'.")
-                elif not self.music_queue:
-                    await self.restore_default_status()
-                else:
-                    logger.debug("Música pausada ou aguardando próxima música na fila.")
-            except Exception as e:
-                logger.error(f"Erro ao atualizar o status do bot: {e}")
+        """
+        Atualiza o status do bot com base no estado atual do MusicManager.
+        """
+        try:
+            if self.current_song:
+                title = self.current_song.get('title', 'Desconhecida')
+                activity = discord.Activity(type=discord.ActivityType.listening, name=title)
+                await self.bot.change_presence(activity=activity, status=discord.Status.online)
+                logger.info(f"Status atualizado para 'Ouvindo: {title}'.")
+            elif not self.music_queue:
+                await self.restore_default_status()
+            else:
+                logger.debug("Música pausada ou aguardando próxima música na fila.")
+        except Exception as e:
+            logger.error(f"Erro ao atualizar o status do bot: {e}")
 
     async def restore_default_status(self):
         """
@@ -227,4 +230,52 @@ class MusicManager:
         """
         Formata a duração em segundos para o formato HH:MM:SS.
         """
-        return f"{seconds // 3600}:{(seconds % 3600) // 60:02}:{seconds % 60:02}"
+        hours, remainder = divmod(seconds, 3600)
+        minutes, seconds = divmod(remainder, 60)
+        return f"{hours:02}:{minutes:02}:{seconds:02}"
+
+    async def stop_music(self, ctx):
+        """
+        Para a música atual e limpa a fila.
+        """
+        try:
+            if self.voice_client and self.voice_client.is_playing():
+                self.voice_client.stop()
+                self.clear_queue()
+                await ctx.send(embed=self.create_embed(
+                    "⏹ Música Parada",
+                    "A reprodução foi interrompida e a fila foi limpa.",
+                    get_embed_color()
+                ))
+                await self.update_bot_status()
+        except Exception as e:
+            logger.error(f"Erro ao parar a música: {e}")
+            await ctx.send(embed=self.create_embed(
+                "Erro",
+                f"⚠️ Ocorreu um erro ao tentar parar a música: {str(e)}",
+                get_embed_color()
+            ))
+
+    def adjust_volume(self, volume):
+        """
+        Ajusta o volume da reprodução atual.
+        """
+        if 0.0 <= volume <= 2.0:
+            self.volume = volume
+            if self.voice_client and self.voice_client.source:
+                self.voice_client.source.volume = self.volume
+            logger.info(f"Volume ajustado para: {volume * 100}%")
+        else:
+            logger.warning("Tentativa de ajuste de volume fora do intervalo permitido (0.0 - 2.0).")
+
+    def is_queue_empty(self):
+        """
+        Verifica se a fila de músicas está vazia.
+        """
+        return len(self.music_queue) == 0
+
+    def is_playing(self):
+        """
+        Verifica se uma música está sendo reproduzida atualmente.
+        """
+        return self.voice_client and self.voice_client.is_playing()
