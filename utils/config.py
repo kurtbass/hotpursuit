@@ -6,12 +6,15 @@ import os
 
 # Configuração de logs
 logger = logging.getLogger(__name__)
-
-# Configuração do banco de dados
-DATABASE_URL = os.getenv("DATABASE_URL")
+logging.basicConfig(level=logging.INFO)
 
 # Carregar variáveis do arquivo .env
 load_dotenv()
+
+# Configuração do banco de dados
+DATABASE_URL = os.getenv("DATABASE_URL")
+if not DATABASE_URL:
+    raise ValueError("DATABASE_URL não está definida no arquivo .env. Verifique suas configurações.")
 
 # Configurações do Discord Bot
 TOKEN = os.getenv('DISCORD_TOKEN')  # Token do bot
@@ -27,13 +30,14 @@ def execute_query(query, params=()):
     Executa uma query no banco de dados e retorna o cursor.
     """
     try:
+        logger.info(f"Conectando ao banco de dados em {DATABASE_URL}")
         with sqlite3.connect(DATABASE_URL) as conn:
             cursor = conn.cursor()
             cursor.execute(query, params)
             conn.commit()
             return cursor
     except sqlite3.Error as e:
-        logger.error(f"Erro ao executar a query '{query}': {e}")
+        logger.error(f"Erro ao executar a query '{query}' com parâmetros {params}: {e}")
         return None
 
 def fetchone(query, params=()):
@@ -55,6 +59,8 @@ def get_config(key):
     Obtém um valor da tabela 'configs' pelo seu key.
     """
     result = fetchone('SELECT value FROM configs WHERE key = ?', (key,))
+    if not result:
+        logger.warning(f"Configuração não encontrada para a chave: {key}")
     return result[0] if result else None
 
 def get_prefix():
@@ -62,7 +68,9 @@ def get_prefix():
     Obtém o prefixo do bot armazenado na tabela 'configs'.
     """
     result = get_config('PREFIXO')
-    return result if result else '!'  # Retorna '!' como fallback
+    if not result:
+        logger.warning("Prefixo não encontrado no banco de dados. Usando o valor padrão '!'.")
+    return result if result else '!'
 
 def get_restart_data():
     """

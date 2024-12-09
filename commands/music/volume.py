@@ -1,6 +1,6 @@
-from utils.database import get_embed_color
 import discord
 from discord.ext import commands
+from commands.music.musicsystem.embeds import embed_error, embed_current_volume, embed_volume_set
 from utils.database import set_user_volume, get_user_volume
 
 class VolumeCommand(commands.Cog):
@@ -24,30 +24,18 @@ class VolumeCommand(commands.Cog):
 
         # Verificar se há conexão de voz
         if not voice_client or not voice_client.is_connected():
-            await ctx.send(embed=discord.Embed(
-                title="Erro",
-                description="⚠️ O bot não está conectado a nenhum canal de voz.",
-                color=get_embed_color()
-            ))
+            await ctx.send(embed=embed_error("bot_not_connected"))
             return
 
         # Exibir o volume atual caso nenhum valor seja informado
         if volume is None:
             current_volume = self.music_manager.volume * 100
-            await ctx.send(embed=discord.Embed(
-                title="🔊 Volume Atual",
-                description=f"O volume atual é **{int(current_volume)}%**.",
-                color=get_embed_color()
-            ))
+            await ctx.send(embed=embed_current_volume(current_volume))
             return
 
         # Validar intervalo do volume
         if not 0 <= volume <= 100:
-            await ctx.send(embed=discord.Embed(
-                title="Erro",
-                description="⚠️ O volume deve estar entre 0 e 100.",
-                color=get_embed_color()
-            ))
+            await ctx.send(embed=embed_error("invalid_volume_range"))
             return
 
         # Ajustar o volume no player e no gerenciador de música
@@ -61,11 +49,7 @@ class VolumeCommand(commands.Cog):
         set_user_volume(ctx.author.id, decimal_volume)
 
         # Confirmar ajuste para o usuário
-        await ctx.send(embed=discord.Embed(
-            title="🔊 Volume Ajustado",
-            description=f"O volume foi ajustado para **{volume}%**.",
-            color=get_embed_color()
-        ))
+        await ctx.send(embed=embed_volume_set(volume))
 
 
 async def setup(bot, music_manager):

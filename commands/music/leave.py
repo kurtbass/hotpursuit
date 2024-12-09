@@ -1,56 +1,38 @@
-from utils.database import get_embed_color
 import discord
 from discord.ext import commands
-
-from utils.database import get_config
+from commands.music.musicsystem.embeds import embed_error, embed_disconnected
 
 class LeaveCommand(commands.Cog):
     """
-    Comando para pausar a reprodução de música.
+    Comando para o bot sair do canal de voz.
     """
 
     def __init__(self, bot, music_manager):
         """
-        Inicializa o comando de pausa.
+        Inicializa o comando de saída do canal de voz.
         """
         self.bot = bot
         self.music_manager = music_manager
 
-    def create_embed(self, title, description, color=get_embed_color()):
-        """
-        Cria um embed padronizado com título, descrição e cor.
-        """
-        embed = discord.Embed(title=title, description=description, color=color)
-        embed.set_footer(text=get_config("LEMA"))
-        return embed
-
-    @commands.command(name="leave", aliases=["sair", "desconectar, disconnect, quit"])
+    @commands.command(name="leave", aliases=["sair", "desconectar", "disconnect", "quit"])
     async def leave(self, ctx):
         """
         Faz o bot sair do canal de voz atual.
         """
         if not self.bot.voice_clients or not any(vc.is_connected() for vc in self.bot.voice_clients):
-            await ctx.send(embed=self.create_embed(
-                "Erro",
-                "⚠️ Não estou conectado a nenhum canal de voz.",
-                get_embed_color()
+            await ctx.send(embed=embed_error(
+                "Não estou conectado a nenhum canal de voz."
             ))
             return
 
         for vc in self.bot.voice_clients:
             if vc.channel == ctx.author.voice.channel:
                 await vc.disconnect()
-                await ctx.send(embed=self.create_embed(
-                    "Desconectado",
-                    f"✅ Saí do canal **{vc.channel.name}**.",
-                    get_embed_color()
-                ))
+                await ctx.send(embed=embed_disconnected(vc.channel.name))
                 return
 
-        await ctx.send(embed=self.create_embed(
-            "Erro",
-            "⚠️ Você não está no mesmo canal de voz que eu.",
-            get_embed_color()
+        await ctx.send(embed=embed_error(
+            "Você não está no mesmo canal de voz que eu."
         ))
 
 

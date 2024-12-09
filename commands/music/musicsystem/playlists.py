@@ -1,12 +1,10 @@
-from utils.database import get_embed_color
+import asyncio
 from yt_dlp import YoutubeDL
 from asyncio.log import logger
-import asyncio
-from utils.database import get_config
+from commands.music.musicsystem.embeds import embed_playlist_added, embed_error, embed_now_playing
 import discord
 
-
-async def process_playlist(ctx, playlist_url, music_manager, ydl_opts, from_db=False, db_links=None, send_embed=True):
+async def process_playlist(ctx, playlist_url, music_manager, ydl_opts, from_db=False, db_links=None, send_embed=True, added_by_id=None):
     """
     Processa uma playlist e adiciona suas músicas à fila como links individuais.
     """
@@ -46,35 +44,27 @@ async def process_playlist(ctx, playlist_url, music_manager, ydl_opts, from_db=F
                 'url': entry.get('url'),
                 'duration': entry.get('duration', 0),
                 'uploader': entry.get('uploader', 'Uploader desconhecido'),
-                'added_by': ctx.author.display_name,
+                'added_by': ctx.author.display_name if added_by_id is None else added_by_id,
                 'thumbnail': entry.get('thumbnail', None),
                 'channel': ctx.author.voice.channel.name,
             }
-            music_manager.add_to_queue(song)
+            music_manager.add_to_queue(song, added_by_id or ctx.author.id)
             valid_songs += 1
 
         if send_embed:
-            embed = music_manager.create_embed(
-                "🎶 Playlist Adicionada à Fila",
-                f"**Título:** {playlist_title}\n"
-                f"**Uploader:** {playlist_uploader}\n"
-                f"**Quantidade de Músicas:** {valid_songs}\n"
-                f"**Duração Total:** {total_duration // 3600}:{(total_duration % 3600) // 60:02}:{total_duration % 60:02}\n"
-                f"**Adicionada por:** {ctx.author.mention}",
-                get_embed_color()
-            )
-            if playlist_thumbnail:
-                embed.set_image(url=playlist_thumbnail)
-            await ctx.send(embed=embed)
+            await ctx.send(embed=embed_playlist_added(
+                title=playlist_title,
+                uploader=playlist_uploader,
+                valid_songs=valid_songs,
+                total_duration=total_duration,
+                thumbnail=playlist_thumbnail,
+                user=ctx.author
+            ))
 
     except Exception as e:
         logger.error(f"Erro ao processar playlist: {e}")
         if send_embed:
-            await ctx.send(embed=music_manager.create_embed(
-                "Erro",
-                f"⚠️ Ocorreu um erro ao processar a playlist: {str(e)}",
-                get_embed_color()
-            ))
+            await ctx.send(embed=embed_error("playlist_processing_error", str(e)))
 
 
 async def play_song(ctx, music_manager, ydl_opts):
@@ -89,11 +79,7 @@ async def play_song(ctx, music_manager, ydl_opts):
         current_song = music_manager.get_next_song()
         if not current_song:
             # Caso a fila esteja vazia, notifica e desconecta
-            await ctx.send(embed=music_manager.create_embed(
-                "🎶 Fila Vazia",
-                "Adicione mais músicas para continuar a reprodução.",
-                get_embed_color()
-            ))
+            await ctx.send(embed=embed_error("queue_empty"))
             await asyncio.sleep(5)
             if music_manager.voice_client:
                 await music_manager.voice_client.disconnect()
@@ -121,18 +107,8 @@ async def play_song(ctx, music_manager, ydl_opts):
         music_manager.voice_client.play(source, after=after_playing)
 
         # Envia feedback sobre a música atual
-        await ctx.send(embed=music_manager.create_embed(
-            "🎵 Tocando Agora",
-            f"**Título:** {current_song.get('title', 'Título desconhecido')}\n"
-            f"**Duração:** {current_song.get('duration', 0)} segundos\n"
-            f"**Adicionado por:** {current_song.get('added_by', 'Desconhecido')}",
-            get_embed_color()
-        ))
+        await ctx.send(embed=embed_now_playing(current_song))
 
     except Exception as e:
         logger.error(f"Erro ao reproduzir música: {e}")
-        await ctx.send(embed=music_manager.create_embed(
-            "Erro",
-            f"⚠️ Ocorreu um erro ao reproduzir a música: {str(e)}",
-            get_embed_color()
-        ))
+        await ctx.send(embed=embed_error("play_song_error", str(e)))

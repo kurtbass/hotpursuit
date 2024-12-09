@@ -1,8 +1,7 @@
-from utils.database import get_embed_color
 import discord
 from discord.ext import commands
+from commands.music.musicsystem.embeds import embed_error, embed_music_paused
 import logging
-from utils.database import get_config
 from commands.music.musicsystem.music_system import MusicManager
 
 logger = logging.getLogger(__name__)
@@ -33,23 +32,17 @@ class PauseCommand(commands.Cog):
 
         # Verifica se o bot está conectado a um canal de voz
         if voice_client is None or not voice_client.is_connected():
-            await ctx.send(embed=self.music_manager.create_embed(
-                "Erro", "⚠️ O bot não está conectado a nenhum canal de voz.", get_embed_color()
-            ))
+            await ctx.send(embed=embed_error("bot_not_connected"))
             return
 
         # Verifica se o usuário está no mesmo canal do bot
         if not ctx.author.voice or ctx.author.voice.channel != voice_client.channel:
-            await ctx.send(embed=self.music_manager.create_embed(
-                "Erro", "⚠️ Você precisa estar no mesmo canal de voz do bot para usar este comando.", get_embed_color()
-            ))
+            await ctx.send(embed=embed_error("user_not_in_same_channel"))
             return
 
         # Verifica se há uma música tocando
         if not voice_client.is_playing():
-            await ctx.send(embed=self.music_manager.create_embed(
-                "Erro", "⚠️ Nenhuma música está tocando para pausar.", get_embed_color()
-            ))
+            await ctx.send(embed=embed_error("no_music_playing"))
             return
 
         try:
@@ -59,36 +52,12 @@ class PauseCommand(commands.Cog):
             # Verifica se o estado do player mudou para pausado
             if not voice_client.is_playing():
                 current_song = self.music_manager.current_song
-                song_title = current_song.get('title', 'Desconhecida') if current_song else 'Desconhecida'
-
-                # Envia mensagem de confirmação com thumbnail (se disponível)
-                await ctx.send(embed=self.music_manager.create_embed(
-                    "Música Pausada",
-                    f"⏸️ A música **{song_title}** foi pausada.",
-                    get_embed_color(),
-                    thumbnail=current_song.get('thumbnail') if current_song else None
-                ))
-                logger.info(f"Música pausada com sucesso: {song_title}")
+                await ctx.send(embed=embed_music_paused(current_song))
+                logger.info(f"Música pausada com sucesso: {current_song.get('title', 'Desconhecida')}")
 
         except Exception as e:
-            # Ignora o erro e verifica se o estado mudou para pausado
-            if not voice_client.is_playing():
-                current_song = self.music_manager.current_song
-                song_title = current_song.get('title', 'Desconhecida') if current_song else 'Desconhecida'
-
-                # Envia mensagem de confirmação
-                await ctx.send(embed=self.music_manager.create_embed(
-                    "Música Pausada",
-                    f"⏸️ A música **{song_title}** foi pausada (após ignorar o erro).\n{get_config('LEMA')}",
-                    get_embed_color(),
-                    thumbnail=current_song.get('thumbnail') if current_song else None
-                ))
-                logger.warning(f"Erro ignorado ao pausar a música, mas o estado foi alterado: {e}")
-            else:
-                logger.error(f"Erro ao tentar pausar a música: {e}")
-                await ctx.send(embed=self.music_manager.create_embed(
-                    "Erro", f"⚠️ Ocorreu um erro ao tentar pausar a música: {str(e)}", get_embed_color()
-                ))
+            logger.error(f"Erro ao tentar pausar a música: {e}")
+            await ctx.send(embed=embed_error("pause_error", str(e)))
 
 
 async def setup(bot, music_manager: MusicManager):

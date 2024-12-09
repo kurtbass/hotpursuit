@@ -1,6 +1,6 @@
-from utils.database import get_embed_color
 import discord
 from discord.ext import commands
+from commands.music.musicsystem.embeds import embed_error, embed_previous_song
 import logging
 
 logger = logging.getLogger(__name__)
@@ -22,23 +22,17 @@ class PreviousCommand(commands.Cog):
         voice_client = self.music_manager.voice_client
 
         if voice_client is None or not voice_client.is_connected():
-            await ctx.send(embed=self.music_manager.create_embed(
-                "Erro", "⚠️ O bot não está conectado a nenhum canal de voz.", get_embed_color()
-            ))
+            await ctx.send(embed=embed_error("bot_not_connected"))
             return
 
         # Recuperar a música anterior do histórico
         previous_song = self.music_manager.get_previous_song()
         if not previous_song:
-            await ctx.send(embed=self.music_manager.create_embed(
-                "Erro", "⚠️ Não há nenhuma música anterior no histórico.", get_embed_color()
-            ))
+            await ctx.send(embed=embed_error("no_previous_song"))
             return
 
         if not ctx.author.voice or ctx.author.voice.channel != voice_client.channel:
-            await ctx.send(embed=self.music_manager.create_embed(
-                "Erro", "⚠️ Você precisa estar no mesmo canal de voz do bot para usar este comando.", get_embed_color()
-            ))
+            await ctx.send(embed=embed_error("user_not_in_same_channel"))
             return
 
         try:
@@ -67,24 +61,11 @@ class PreviousCommand(commands.Cog):
                 self.music_manager.play_next, voice_client
             ))
 
-            # Formatar duração
-            duration_seconds = previous_song.get('duration', 0)
-            duration_formatted = f"{duration_seconds // 60}:{duration_seconds % 60:02d}" if duration_seconds else "Desconhecida"
-
             # Enviar mensagem de confirmação
-            await ctx.send(embed=self.music_manager.create_embed(
-                "⏮️ Voltando para a Música Anterior",
-                description=(f"**Música:** [{previous_song['title']}]({previous_song['url']})\n"
-                             f"**Canal do YouTube:** {previous_song['uploader']}\n"
-                             f"**Duração:** {duration_formatted}\n"
-                             f"**Adicionado por:** {previous_song['added_by']}"),
-                banner=previous_song.get('thumbnail')
-            ))
+            await ctx.send(embed=embed_previous_song(previous_song))
         except Exception as e:
             logger.error(f"Erro ao reproduzir a música anterior: {e}")
-            await ctx.send(embed=self.music_manager.create_embed(
-                "Erro", "⚠️ Ocorreu um erro ao tentar reproduzir a música anterior.", get_embed_color()
-            ))
+            await ctx.send(embed=embed_error("previous_song_error", str(e)))
 
 
 async def setup(bot, music_manager):

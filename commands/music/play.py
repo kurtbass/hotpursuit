@@ -1,12 +1,11 @@
-from utils.database import get_embed_color
 import logging
 from discord.ext import commands
+from commands.music.musicsystem.embeds import embed_error, embed_play_usage
 from commands.music.musicsystem.insert import insert_music
 from commands.music.musicsystem.music_system import MusicManager
 from commands.music.musicsystem.playlists import process_playlist
 from commands.music.musicsystem.voice_utils import join_voice_channel
 from commands.music.musicsystem.play_utils import play_next
-from utils.config import get_config
 from commands.music.musicsystem.ydl_opts import YDL_OPTS
 from commands.music.musicsystem.ffmpeg_options import FFMPEG_OPTIONS
 
@@ -34,19 +33,7 @@ class PlayCommand(commands.Cog):
         """
         if not query:
             # Envia uma mensagem explicando como usar o comando
-            await ctx.send(embed=self.music_manager.create_embed(
-                "Como Usar o Comando play",
-                f"⚠️ **Uso do Comando play** ⚠️\n\n"
-                f"**Opções de uso:**\n"
-                f"- Link do YouTube: `https://youtube.com/watch?v=<ID>`\n"
-                f"- Nome da Música: Exemplo: `Bohemian Rhapsody`\n"
-                f"- Playlist do YouTube: `https://youtube.com/playlist?list=<ID>`\n\n"
-                f"**Exemplos de Comando:**\n"
-                f"- `{get_config('PREFIXO')}play https://youtube.com/watch?v=xxxxxx`\n"
-                f"- `{get_config('PREFIXO')}play Nome da Música`\n"
-                f"- `{get_config('PREFIXO')}play https://youtube.com/playlist?list=xxxxxx`\n",
-                get_embed_color()  # Cor do embed
-            ))
+            await ctx.send(embed=embed_play_usage())
             return
 
         try:
@@ -58,10 +45,10 @@ class PlayCommand(commands.Cog):
             # Determina se o argumento é uma playlist ou música individual
             if "playlist" in query.lower() or "list=" in query:
                 logger.info(f"Processando playlist: {query}")
-                await process_playlist(ctx, query, self.music_manager, self.ydl_opts)
+                await process_playlist(ctx, query, self.music_manager, self.ydl_opts, added_by_id=ctx.author.id)
             else:
                 logger.info(f"Adicionando música individual: {query}")
-                await insert_music(ctx, query, self.music_manager, self.ydl_opts)
+                await insert_music(ctx, query, self.music_manager, self.ydl_opts, added_by_id=ctx.author.id)
 
             # Se o bot não estiver tocando, inicie a reprodução
             if not self.music_manager.voice_client.is_playing():
@@ -71,9 +58,7 @@ class PlayCommand(commands.Cog):
         except Exception as e:
             # Caso ocorra algum erro ao tentar reproduzir a música
             logger.error(f"Erro ao tentar reproduzir música ou playlist: {e}")
-            await ctx.send(embed=self.music_manager.create_embed(
-                "Erro", f"⚠️ Ocorreu um erro ao tentar tocar a música.\n{str(e)}", get_embed_color()  # Cor do erro
-            ))
+            await ctx.send(embed=embed_error("play_error", str(e)))
 
 async def setup(bot, music_manager):
     """
