@@ -36,25 +36,22 @@ async def process_playlist(ctx, playlist_url, music_manager, ydl_opts, from_db=F
         total_duration = sum(entry.get('duration', 0) or 0 for entry in entries if entry and 'duration' in entry)
         valid_songs = 0
 
-        # Garantir que o bot esteja conectado ao canal de voz com o volume salvo
+        # Garantir que o bot esteja conectado ao canal de voz
         if not music_manager.voice_client or not music_manager.voice_client.is_connected():
             if ctx.author.voice:
-                user_volume = get_user_volume(ctx.author.id)
-                if user_volume is None:
-                    user_volume = 1.0  # Valor padrão caso o volume não exista no banco
-                    set_user_volume(ctx.author.id, user_volume)  # Salvar o volume padrão para o usuário
-                music_manager.volume = user_volume
-
                 music_manager.voice_client = await ctx.author.voice.channel.connect()
-
-                # Configurar o volume inicial da sessão
-                if music_manager.voice_client.source and hasattr(music_manager.voice_client.source, 'volume'):
-                    music_manager.voice_client.source.volume = music_manager.volume
-
-                logger.info(f"Conectado ao canal de voz: {ctx.author.voice.channel.name} com volume inicial de {music_manager.volume * 100:.1f}%")
+                logger.info(f"Conectado ao canal de voz: {ctx.author.voice.channel.name}")
             else:
                 await ctx.send(embed=embed_error("user_not_in_voice_channel"))
                 return
+
+        # Ajustar o volume do usuário após conectar ao canal
+        user_volume = get_user_volume(ctx.author.id)
+        if user_volume is None:
+            user_volume = 1.0  # Volume padrão
+            set_user_volume(ctx.author.id, user_volume)
+        music_manager.volume = user_volume
+        logger.info(f"Volume inicial ajustado para {music_manager.volume * 100:.1f}%")
 
         for entry in entries:
             if not entry or 'url' not in entry:
@@ -113,6 +110,11 @@ async def play_song(ctx, music_manager, ydl_opts):
             with YoutubeDL(ydl_opts) as ydl:
                 info = ydl.extract_info(current_song['url'], download=False)
                 current_song['stream_url'] = info.get('url')
+
+        # Garantir que o volume está atualizado antes de tocar a música
+        user_volume = get_user_volume(ctx.author.id)
+        if user_volume is not None:
+            music_manager.volume = user_volume
 
         # Configura o áudio e inicia a reprodução
         source = discord.PCMVolumeTransformer(

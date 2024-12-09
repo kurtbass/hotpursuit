@@ -28,7 +28,7 @@ async def insert_music(ctx, query, music_manager, ydl_opts, added_by_id):
                 'uploader': info.get('uploader', 'Desconhecido'),
                 'url': info.get('webpage_url', 'URL não disponível'),
                 'thumbnail': info.get('thumbnail'),
-                'added_by': ctx.author.display_name,
+                'added_by': added_by_id,
                 'channel': ctx.author.voice.channel.name
             }
 
@@ -40,15 +40,15 @@ async def insert_music(ctx, query, music_manager, ydl_opts, added_by_id):
         music_manager.add_to_queue(song, added_by_id)
 
         # Feedback ao usuário
-        await ctx.send(embed=embed_queue_song_added(song, ctx.author))
+        await ctx.send(embed=embed_queue_song_added(song, ctx.author.voice.channel, added_by=added_by_id))
 
         # Log para depuração
         logger.info(f"Música adicionada à fila: {song['title']}")
 
     except youtube_dl.DownloadError as e:
         logger.error(f"Erro ao processar o download da música: {e}")
-        await ctx.send(embed=embed_error("download_error"))
+        await ctx.send(embed=embed_error("Erro ao baixar a música.", str(e)))
 
     except Exception as e:
         logger.error(f"Erro ao inserir música: {e}")
-        await ctx.send(embed=embed_error("unexpected_error"))
+        await ctx.send(embed=embed_error("Erro inesperado ao inserir a música.", str(e)))

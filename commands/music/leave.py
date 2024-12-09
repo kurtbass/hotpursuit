@@ -27,7 +27,17 @@ class LeaveCommand(commands.Cog):
 
         # Verifica se o usuário iniciou a sessão ou tem a tag de DJ
         tag_dj_id = self.music_manager.dj_role_id
-        if not (ctx.author.id == int(self.music_manager.current_song.get('added_by')) or 
+        session_owner_id = self.music_manager.get_session_owner_id()
+
+        if session_owner_id is None and self.music_manager.current_song:
+            session_owner_id = self.music_manager.current_song.get('added_by', None)
+
+        try:
+            session_owner_id = int(session_owner_id) if session_owner_id else None
+        except (TypeError, ValueError):
+            session_owner_id = None
+
+        if not (ctx.author.id == session_owner_id or 
                 discord.utils.get(ctx.author.roles, id=int(tag_dj_id))):
             await ctx.send(embed=embed_dj_error())
             return

@@ -46,13 +46,31 @@ def embed_queue_empty():
         "Adicione mais músicas para continuar a reprodução."
     )
 
+def embed_need_to_be_connected_in_voice_channel():
+    """
+    Embed para exibir erro caso o usuário não esteja conectado em um canal de voz.
+    """
+    return create_embed(
+        "❌ Erro",
+        "Você precisa estar conectado em um canal de voz para usar esse comando."
+    )
+
 def embed_dj_error():
     """
     Embed para exibir erro sobre dono da sessão e a tag de DJ.
     """
     return create_embed(
         "🚫 Sem permissão",
-        f"Você precisa ser o dono da sessão ou possuir o cargo <@&{get_config("TAG_DJ")}> para executar esse comando."
+        f"Você precisa ser o dono da sessão ou possuir o cargo <@&{get_config('TAG_DJ')}> para executar esse comando."
+    )
+
+def embed_already_being_used_only_owner_can_move(current_channel):
+    """
+    Embed para exibir que o bot já está sendo usado e que apenas o dono da sessão pode chamar o bot..
+    """
+    return create_embed(
+        "❌ Erro",
+        f"Já estou tocando música no canal **{current_channel.name}**. Apenas o dono da sessão pode me mover."
     )
 
 def embed_user_not_in_same_channel():
@@ -73,17 +91,16 @@ def embed_no_music_paused():
         "Não há nenhuma música pausada no momento."
     )
 
-def embed_error(message, error_detail):
+def embed_error(message, error_detail=""):
     """
     Embed para exibir erros.
     """
     return create_embed(
         "Erro",
-        f"⚠️ {message}"
-        f"{error_detail}"
+        f"⚠️ {message}\n{error_detail}"
     )
 
-def embed_queue_song_added(song, added_by, is_playlist=False, playlist_name=None, user=None):
+def embed_queue_song_added(song, voice_channel, added_by, is_playlist=False, playlist_name=None, user=None):
     """
     Embed para exibir música adicionada à fila.
     Se for uma playlist salva, mostra o nome da playlist e usa o avatar do usuário.
@@ -92,7 +109,7 @@ def embed_queue_song_added(song, added_by, is_playlist=False, playlist_name=None
         banner = user.avatar.url if hasattr(user, 'avatar') and user.avatar else None
         description = (
             f"**Playlist:** {playlist_name}\n"
-            f"**Adicionado por:** <@{song['added_by']}>"
+            f"**Adicionado por:** <@{added_by}>"
         )
     else:
         banner = song.get('thumbnail')
@@ -100,7 +117,8 @@ def embed_queue_song_added(song, added_by, is_playlist=False, playlist_name=None
             f"**Título:** {song['title']}\n"
             f"**Canal:** {song.get('uploader', 'Desconhecido')}\n"
             f"**Duração:** {format_duration(song['duration'])}\n"
-            f"**Adicionado por:** <@{song['added_by']}>"
+            f"**Adicionado por:** <@{added_by}>\n"
+            f"**Canal de Voz:** <#{voice_channel.id}>"
         )
 
     return create_embed(

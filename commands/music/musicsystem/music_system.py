@@ -29,6 +29,7 @@ class MusicManager:
         """
         song['added_by'] = added_by_id
         self.music_queue.append(song)
+        logger.info(f"Música adicionada à fila: {song.get('title', 'Desconhecido')} por {added_by_id}")
 
     def get_session_owner_id(self):
         """
@@ -69,7 +70,7 @@ class MusicManager:
                     song['thumbnail'] = info.get('thumbnail', song.get('thumbnail'))
             except Exception as e:
                 logger.error(f"Erro ao resolver URL do stream: {e}")
-                raise RuntimeError(f"Erro ao resolver URL do stream: {e}")
+                raise RuntimeError("Não foi possível reproduzir esta música.")
 
     def clear_queue(self):
         """Limpa a fila de músicas."""
@@ -119,6 +120,11 @@ class MusicManager:
                         logger.error(f"Erro ao tentar reconectar ao canal de voz: {e}")
                         return
 
+            # Garantir que o volume está atualizado antes de reproduzir
+            user_volume = get_user_volume(ctx.author.id)
+            if user_volume is not None:
+                self.volume = user_volume
+
             # Resolver URL e iniciar a reprodução
             self.resolve_stream_url(next_song)
             self.set_current_song(next_song)
@@ -140,7 +146,8 @@ class MusicManager:
             self.voice_client.play(source, after=after_playing)
 
             # Informar sobre a música atual
-            await ctx.send(embed=embed_now_playing(next_song))
+            voice_channel = self.voice_client.channel if self.voice_client else ctx.author.voice.channel
+            await ctx.send(embed=embed_now_playing(next_song, voice_channel))
 
         except discord.ClientException as e:
             logger.error(f"Erro no cliente Discord: {e}")
@@ -159,7 +166,7 @@ class MusicManager:
 
     def get_total_duration(self):
         """Calcula a duração total das músicas na fila."""
-        return sum(song.get('duration', 0) for song in self.music_queue)
+        return sum(song.get('duration', 0) or 0 for song in self.music_queue)
 
     async def stop_music(self, ctx):
         """Para a música atual e limpa a fila."""
