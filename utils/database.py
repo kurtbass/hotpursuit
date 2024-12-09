@@ -132,21 +132,25 @@ def get_user_volume(user_id: int) -> float:
     query = "SELECT volume FROM volume WHERE user = ?"
     result = fetchone(query, (user_id,))
     logger.debug(f"Volume para o usuário {user_id}: {result}")
-    return float(result[0]) / 100 if result else 1.0
+    return result[0] / 100 if result else 1.0
 
-def set_user_volume(user_id: int, volume: float) -> None:
+def set_user_volume(user_id: int, volume: int) -> None:
     """
     Define o volume do usuário, atualizando-o se já existir.
+
+    :param user_id: ID do usuário.
+    :param volume: Volume como inteiro (0 a 100).
     """
-    if not 0.0 <= volume <= 2.0:
-        raise ValueError("O volume deve estar entre 0.0 e 2.0")
+    if not 0 <= volume <= 100:
+        raise ValueError("O volume deve estar entre 0 e 100")  # Ajuste da validação
+
     query = """
     INSERT INTO volume (user, volume)
     VALUES (?, ?)
     ON CONFLICT(user) DO UPDATE SET volume = excluded.volume
     """
     execute_query(query, (user_id, volume))
-    logger.info(f"Volume ajustado para {volume * 100}% para o usuário {user_id}.")
+    logger.info(f"Volume ajustado para {volume}% para o usuário {user_id}.")
 
 # Cor do embed
 def get_embed_color() -> discord.Colour:

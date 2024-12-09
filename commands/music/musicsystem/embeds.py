@@ -11,21 +11,31 @@ def create_embed(title, description, color=None, banner=None):
     if banner:
         embed.set_image(url=banner)
     return embed
+    
 
 def embed_now_playing(song, voice_channel):
     """
-    Embed para a música atualmente tocando.
+    Gera um embed para exibir informações da música atualmente tocando.
+
+    :param song: Dicionário contendo informações da música atual.
+    :param voice_channel: O canal de voz onde o bot está conectado.
+    :return: Um embed configurado.
     """
-    banner = song.get('thumbnail')
-    return create_embed(
-        "🎵 Tocando Agora",
-        f"**Título:** {song['title']}\n"
-        f"**Canal:** {song.get('uploader', 'Desconhecido')}\n"
-        f"**Duração:** {format_duration(song['duration'])}\n"
-        f"**Adicionado por:** {song['added_by']}\n"
-        f"**Canal de Voz:** <#{voice_channel.id}>",
-        banner=banner
+    embed = discord.Embed(
+        title="🎶 Tocando Agora",
+        description=(
+            f"**Título:** [{song.get('title', 'Desconhecido')}]({song.get('url', '#')})\n"
+            f"**Canal do YouTube:** {song.get('uploader', 'Desconhecido')}\n"
+            f"**Duração:** {format_duration(song.get('duration', 0))}\n"
+            f"**Adicionado por:** <@{song.get('added_by', 'Desconhecido')}>\n"
+            f"**Canal de Voz:** <#{voice_channel.id}>"
+        ),
+        color=get_embed_color()
     )
+    # Adiciona uma imagem (thumbnail) se disponível
+    if song.get('thumbnail'):
+        embed.set_thumbnail(url=song['thumbnail'])
+    return embed
 
 def embed_queue_empty():
     """
@@ -36,13 +46,41 @@ def embed_queue_empty():
         "Adicione mais músicas para continuar a reprodução."
     )
 
-def embed_error(message):
+def embed_dj_error():
+    """
+    Embed para exibir erro sobre dono da sessão e a tag de DJ.
+    """
+    return create_embed(
+        "🚫 Sem permissão",
+        f"Você precisa ser o dono da sessão ou possuir o cargo <@&{get_config("TAG_DJ")}> para executar esse comando."
+    )
+
+def embed_user_not_in_same_channel():
+    """
+    Embed para exibir erro caso o usuário não esteja na mesma call.
+    """
+    return create_embed(
+        "⚠️ Erro",
+        "Você precisa estar no mesmo canal que o bot."
+    )
+
+def embed_no_music_paused():
+    """
+    Embed para exibir erro se tentar resumir não estando pausado.
+    """
+    return create_embed(
+        "⚠️ Erro",
+        "Não há nenhuma música pausada no momento."
+    )
+
+def embed_error(message, error_detail):
     """
     Embed para exibir erros.
     """
     return create_embed(
         "Erro",
         f"⚠️ {message}"
+        f"{error_detail}"
     )
 
 def embed_queue_song_added(song, added_by, is_playlist=False, playlist_name=None, user=None):
@@ -54,7 +92,7 @@ def embed_queue_song_added(song, added_by, is_playlist=False, playlist_name=None
         banner = user.avatar.url if hasattr(user, 'avatar') and user.avatar else None
         description = (
             f"**Playlist:** {playlist_name}\n"
-            f"**Adicionado por:** {added_by}"
+            f"**Adicionado por:** <@{song['added_by']}>"
         )
     else:
         banner = song.get('thumbnail')
@@ -62,7 +100,7 @@ def embed_queue_song_added(song, added_by, is_playlist=False, playlist_name=None
             f"**Título:** {song['title']}\n"
             f"**Canal:** {song.get('uploader', 'Desconhecido')}\n"
             f"**Duração:** {format_duration(song['duration'])}\n"
-            f"**Adicionado por:** {added_by}"
+            f"**Adicionado por:** <@{song['added_by']}>"
         )
 
     return create_embed(
@@ -154,7 +192,7 @@ def embed_permission_denied(message):
         f"⚠️ {message}"
     )
 
-def embed_skip(song):
+def embed_song_skipped(song):
     """
     Embed para exibir que a música foi pulada.
     """
@@ -164,7 +202,7 @@ def embed_skip(song):
         f"**Agora Tocando:** {song['title']}\n"
         f"**Canal:** {song.get('uploader', 'Desconhecido')}\n"
         f"**Duração:** {format_duration(song['duration'])}\n"
-        f"**Adicionado por:** {song['added_by']}",
+        f"**Adicionado por:** <@{song['added_by']}>",
         banner=banner
     )
 
@@ -182,18 +220,26 @@ def embed_playlist_added(title, uploader, valid_songs, total_duration, thumbnail
         banner=thumbnail
     )
 
-def embed_playlist_menu():
+def embed_playlist_menu(description=None):
     """
-    Embed para o menu principal de playlists.
+    Gera um embed para o menu principal de playlists.
+
+    :param description: Uma descrição opcional para exibir no embed (ex.: lista de playlists do usuário).
+    :return: Um embed configurado.
     """
-    return create_embed(
-        "🎶 Gerenciamento de Playlists",
-        "1⃣ **Salvar playlist atual**\n"
-        "2⃣ **Carregar uma playlist**\n"
-        "3⃣ **Apagar uma playlist**\n"
-        "4⃣ **Apagar todas as suas playlists**\n\n"
-        "Digite o número referente à opção desejada."
+    embed = discord.Embed(
+        title="🎵 Menu de Playlists",
+        description=description or (
+            "Selecione uma das opções:\n\n"
+            "1️⃣ Salvar a playlist atual\n"
+            "2️⃣ Carregar uma playlist salva\n"
+            "3️⃣ Deletar uma playlist salva\n"
+            "4️⃣ Deletar todas as playlists"
+        ),
+        color=discord.Color.blue()
     )
+    embed.set_footer(text="Digite o número correspondente à opção desejada.")
+    return embed
 
 def embed_save_playlist():
     """
@@ -237,7 +283,7 @@ def embed_previous_song(song):
         f"**Título:** {song['title']}\n"
         f"**Canal:** {song.get('uploader', 'Desconhecido')}\n"
         f"**Duração:** {format_duration(song['duration'])}\n"
-        f"**Adicionado por:** {song['added_by']}",
+        f"**Adicionado por:** <@{song['added_by']}>",
         banner=banner
     )
 

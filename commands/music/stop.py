@@ -1,6 +1,6 @@
 import discord
 import logging
-from commands.music.musicsystem.embeds import embed_error, embed_stop_music, embed_permission_denied
+from commands.music.musicsystem.embeds import embed_dj_error, embed_error, embed_stop_music, embed_permission_denied, embed_user_not_in_same_channel
 from commands.music.musicsystem.music_system import MusicManager
 from discord.ext import commands
 
@@ -23,13 +23,14 @@ class StopMusicCommand(commands.Cog):
 
         # Verificar se o usuário está no mesmo canal de voz que o bot
         if not ctx.author.voice or ctx.author.voice.channel != self.music_manager.voice_client.channel:
-            await ctx.send(embed=embed_error("user_not_in_same_channel"))
+            await ctx.send(embed=embed_user_not_in_same_channel())
             return
 
-        # Verificar se o usuário iniciou a sessão ou tem a tag de DJ
+        # Verifica se o usuário iniciou a sessão ou tem a tag de DJ
         tag_dj_id = self.music_manager.dj_role_id
-        if not (ctx.author.id == int(self.music_manager.current_song.get('added_by')) or discord.utils.get(ctx.author.roles, id=int(tag_dj_id))):
-            await ctx.send(embed=embed_permission_denied("stop_music_permission"))
+        if not (ctx.author.id == int(self.music_manager.current_song.get('added_by')) or 
+                discord.utils.get(ctx.author.roles, id=int(tag_dj_id))):
+            await ctx.send(embed=embed_dj_error())
             return
 
         try:
@@ -45,7 +46,7 @@ class StopMusicCommand(commands.Cog):
 
         except Exception as e:
             logger.error(f"Erro ao parar a música: {e}")
-            await ctx.send(embed=embed_error("stop_music_error", str(e)))
+            await ctx.send(embed=embed_dj_error)
 
 async def setup(bot, music_manager):
     await bot.add_cog(StopMusicCommand(bot, music_manager))

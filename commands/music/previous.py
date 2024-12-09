@@ -1,6 +1,6 @@
 import discord
 from discord.ext import commands
-from commands.music.musicsystem.embeds import embed_error, embed_previous_song
+from commands.music.musicsystem.embeds import embed_dj_error, embed_error, embed_previous_song, embed_permission_denied
 import logging
 
 logger = logging.getLogger(__name__)
@@ -23,6 +23,13 @@ class PreviousCommand(commands.Cog):
 
         if voice_client is None or not voice_client.is_connected():
             await ctx.send(embed=embed_error("bot_not_connected"))
+            return
+
+        # Verifica se o usuário iniciou a sessão ou tem a tag de DJ
+        tag_dj_id = self.music_manager.dj_role_id
+        if not (ctx.author.id == int(self.music_manager.current_song.get('added_by')) or 
+                discord.utils.get(ctx.author.roles, id=int(tag_dj_id))):
+            await ctx.send(embed=embed_dj_error())
             return
 
         # Recuperar a música anterior do histórico
@@ -66,7 +73,6 @@ class PreviousCommand(commands.Cog):
         except Exception as e:
             logger.error(f"Erro ao reproduzir a música anterior: {e}")
             await ctx.send(embed=embed_error("previous_song_error", str(e)))
-
 
 async def setup(bot, music_manager):
     """

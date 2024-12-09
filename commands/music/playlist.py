@@ -17,6 +17,7 @@ class PlaylistCommand(commands.Cog):
     def __init__(self, bot, music_manager):
         self.bot = bot
         self.music_manager = music_manager
+        self.voice_channel = None
 
     @commands.command(name="playlist", aliases=["pl"])
     async def playlist(self, ctx):
@@ -100,7 +101,7 @@ class PlaylistCommand(commands.Cog):
             return
 
         description = "\n".join(f"**{i+1}.** {pl[1]}" for i, pl in enumerate(playlists))
-        await ctx.send(embed=embed_playlist_menu(description))
+        await ctx.send(embed=embed_playlist_menu(description=description))
 
         def check(msg):
             return msg.author == ctx.author and msg.channel == ctx.channel and msg.content.isdigit()
@@ -128,7 +129,7 @@ class PlaylistCommand(commands.Cog):
                     'duration': song[2],
                     'uploader': song[3],
                     'thumbnail': song[4],
-                    'added_by': ctx.author.display_name
+                    'added_by': ctx.author.mention
                 }, ctx.author.id)
 
             await ctx.send(embed=embed_playlist_loaded(playlist_name, len(songs), playlist_duration, ctx.author))

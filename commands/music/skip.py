@@ -1,7 +1,7 @@
 import asyncio
 import discord
 from discord.ext import commands
-from commands.music.musicsystem.embeds import embed_error, embed_skip, embed_queue_empty
+from commands.music.musicsystem.embeds import embed_dj_error, embed_error, embed_song_skipped, embed_queue_empty, embed_permission_denied
 import logging
 
 logger = logging.getLogger(__name__)
@@ -28,6 +28,13 @@ class SkipCommand(commands.Cog):
 
         if not voice_client.is_playing():
             await ctx.send(embed=embed_error("no_music_playing"))
+            return
+
+        # Verifica se o usuário iniciou a sessão ou tem a tag de DJ
+        tag_dj_id = self.music_manager.dj_role_id
+        if not (ctx.author.id == int(self.music_manager.current_song.get('added_by')) or 
+                discord.utils.get(ctx.author.roles, id=int(tag_dj_id))):
+            await ctx.send(embed=embed_dj_error())
             return
 
         try:
@@ -57,7 +64,7 @@ class SkipCommand(commands.Cog):
                 ))
 
                 # Informar sobre a próxima música
-                await ctx.send(embed=embed_skip(next_song))
+                await ctx.send(embed=embed_song_skipped(next_song))
             else:
                 # Fila vazia
                 if self.music_manager.current_song:

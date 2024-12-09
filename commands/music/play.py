@@ -8,6 +8,7 @@ from commands.music.musicsystem.voice_utils import join_voice_channel
 from commands.music.musicsystem.play_utils import play_next
 from commands.music.musicsystem.ydl_opts import YDL_OPTS
 from commands.music.musicsystem.ffmpeg_options import FFMPEG_OPTIONS
+from utils.database import get_user_volume
 
 logger = logging.getLogger(__name__)
 
@@ -42,6 +43,15 @@ class PlayCommand(commands.Cog):
             if voice_client is None:
                 return
 
+            # Ajusta o volume da sessão com base no volume salvo na database
+            user_volume = get_user_volume(ctx.author.id)
+            self.music_manager.volume = user_volume if user_volume is not None else 1.0
+
+            if voice_client.source and hasattr(voice_client.source, "volume"):
+                voice_client.source.volume = self.music_manager.volume
+
+            logger.info(f"Volume inicial ajustado para {self.music_manager.volume * 100:.1f}% com base no volume do usuário.")
+
             # Determina se o argumento é uma playlist ou música individual
             if "playlist" in query.lower() or "list=" in query:
                 logger.info(f"Processando playlist: {query}")
@@ -50,15 +60,15 @@ class PlayCommand(commands.Cog):
                 logger.info(f"Adicionando música individual: {query}")
                 await insert_music(ctx, query, self.music_manager, self.ydl_opts, added_by_id=ctx.author.id)
 
-            # Se o bot não estiver tocando, inicie a reprodução
-            if not self.music_manager.voice_client.is_playing():
+            # Verifica se há um voice_client antes de acessar is_playing
+            if self.music_manager.voice_client and not self.music_manager.voice_client.is_playing():
                 logger.info("Iniciando reprodução da próxima música na fila.")
                 await play_next(self.music_manager, self.bot)
 
         except Exception as e:
             # Caso ocorra algum erro ao tentar reproduzir a música
             logger.error(f"Erro ao tentar reproduzir música ou playlist: {e}")
-            await ctx.send(embed=embed_error("play_error", str(e)))
+            await ctx.send(embed=embed_error("Ocorreu um erro durante a reprodução."))
 
 async def setup(bot, music_manager):
     """

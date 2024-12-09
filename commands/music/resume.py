@@ -1,6 +1,6 @@
 import discord
 from discord.ext import commands
-from commands.music.musicsystem.embeds import embed_error, embed_music_resumed
+from commands.music.musicsystem.embeds import embed_dj_error, embed_error, embed_music_resumed, embed_no_music_paused, embed_permission_denied, embed_user_not_in_same_channel
 import logging
 
 logger = logging.getLogger(__name__)
@@ -30,12 +30,19 @@ class ResumeCommand(commands.Cog):
 
         # Verificar se o usuário está no mesmo canal
         if not ctx.author.voice or ctx.author.voice.channel != voice_client.channel:
-            await ctx.send(embed=embed_error("user_not_in_same_channel"))
+            await ctx.send(embed=embed_user_not_in_same_channel())
             return
 
         # Verificar se há música pausada
         if not voice_client.is_paused():
-            await ctx.send(embed=embed_error("no_music_paused"))
+            await ctx.send(embed=embed_no_music_paused())
+            return
+
+        # Verifica se o usuário iniciou a sessão ou tem a tag de DJ
+        tag_dj_id = self.music_manager.dj_role_id
+        if not (ctx.author.id == int(self.music_manager.current_song.get('added_by')) or 
+                discord.utils.get(ctx.author.roles, id=int(tag_dj_id))):
+            await ctx.send(embed=embed_dj_error())
             return
 
         try:
@@ -47,7 +54,6 @@ class ResumeCommand(commands.Cog):
         except Exception as e:
             logger.error(f"Erro ao tentar retomar a música: {e}")
             await ctx.send(embed=embed_error("resume_error", str(e)))
-
 
 async def setup(bot, music_manager):
     """

@@ -22,15 +22,17 @@ class VolumeCommand(commands.Cog):
         """
         voice_client = self.music_manager.voice_client
 
-        # Verificar se há conexão de voz
-        if not voice_client or not voice_client.is_connected():
-            await ctx.send(embed=embed_error("bot_not_connected"))
-            return
-
         # Exibir o volume atual caso nenhum valor seja informado
         if volume is None:
-            current_volume = self.music_manager.volume * 100
-            await ctx.send(embed=embed_current_volume(current_volume))
+            if voice_client and voice_client.is_connected():
+                # Exibir o volume atual do bot
+                current_volume = int(self.music_manager.volume * 100)
+                await ctx.send(embed=embed_current_volume(current_volume))
+            else:
+                # Exibir o volume salvo no banco de dados
+                user_volume = get_user_volume(ctx.author.id)
+                current_volume = user_volume if user_volume is not None else 100
+                await ctx.send(embed=embed_current_volume(current_volume))
             return
 
         # Validar intervalo do volume
@@ -38,20 +40,19 @@ class VolumeCommand(commands.Cog):
             await ctx.send(embed=embed_error("invalid_volume_range"))
             return
 
-        # Ajustar o volume no player e no gerenciador de música
-        decimal_volume = volume / 100  # Converter de 0-100 para 0.0-1.0
-        self.music_manager.volume = decimal_volume
+        # Ajustar o volume no banco de dados
+        set_user_volume(ctx.author.id, volume)  # Salvar como inteiro
 
-        if voice_client.source and hasattr(voice_client.source, "volume"):
-            voice_client.source.volume = decimal_volume
-
-        # Salvar o volume no banco de dados como decimal
-        set_user_volume(ctx.author.id, decimal_volume)
+        # Ajustar o volume no player e no gerenciador de música, se conectado
+        if voice_client and voice_client.is_connected():
+            self.music_manager.volume = volume / 100  # Converter para decimal para uso interno
+            if voice_client.source and hasattr(voice_client.source, "volume"):
+                voice_client.source.volume = self.music_manager.volume
 
         # Confirmar ajuste para o usuário
         await ctx.send(embed=embed_volume_set(volume))
 
-
+        
 async def setup(bot, music_manager):
     """
     Adiciona o cog ao bot.

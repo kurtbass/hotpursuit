@@ -1,6 +1,6 @@
 import discord
 from discord.ext import commands
-from commands.music.musicsystem.embeds import embed_error, embed_disconnected
+from commands.music.musicsystem.embeds import embed_dj_error, embed_error, embed_disconnected, embed_permission_denied
 
 class LeaveCommand(commands.Cog):
     """
@@ -25,9 +25,21 @@ class LeaveCommand(commands.Cog):
             ))
             return
 
+        # Verifica se o usuário iniciou a sessão ou tem a tag de DJ
+        tag_dj_id = self.music_manager.dj_role_id
+        if not (ctx.author.id == int(self.music_manager.current_song.get('added_by')) or 
+                discord.utils.get(ctx.author.roles, id=int(tag_dj_id))):
+            await ctx.send(embed=embed_dj_error())
+            return
+
         for vc in self.bot.voice_clients:
             if vc.channel == ctx.author.voice.channel:
+                # Parar qualquer música sendo reproduzida antes de sair
+                if self.music_manager.is_playing():
+                    await self.music_manager.stop_music(ctx)
+
                 await vc.disconnect()
+                self.music_manager.voice_client = None  # Resetar o cliente de voz no gerenciador de música
                 await ctx.send(embed=embed_disconnected(vc.channel.name))
                 return
 

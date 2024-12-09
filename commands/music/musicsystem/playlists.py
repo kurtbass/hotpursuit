@@ -2,6 +2,7 @@ import asyncio
 from yt_dlp import YoutubeDL
 from asyncio.log import logger
 from commands.music.musicsystem.embeds import embed_playlist_added, embed_error, embed_now_playing
+from utils.database import get_user_volume, set_user_volume
 import discord
 
 async def process_playlist(ctx, playlist_url, music_manager, ydl_opts, from_db=False, db_links=None, send_embed=True, added_by_id=None):
@@ -35,6 +36,26 @@ async def process_playlist(ctx, playlist_url, music_manager, ydl_opts, from_db=F
         total_duration = sum(entry.get('duration', 0) or 0 for entry in entries if entry and 'duration' in entry)
         valid_songs = 0
 
+        # Garantir que o bot esteja conectado ao canal de voz com o volume salvo
+        if not music_manager.voice_client or not music_manager.voice_client.is_connected():
+            if ctx.author.voice:
+                user_volume = get_user_volume(ctx.author.id)
+                if user_volume is None:
+                    user_volume = 1.0  # Valor padrão caso o volume não exista no banco
+                    set_user_volume(ctx.author.id, user_volume)  # Salvar o volume padrão para o usuário
+                music_manager.volume = user_volume
+
+                music_manager.voice_client = await ctx.author.voice.channel.connect()
+
+                # Configurar o volume inicial da sessão
+                if music_manager.voice_client.source and hasattr(music_manager.voice_client.source, 'volume'):
+                    music_manager.voice_client.source.volume = music_manager.volume
+
+                logger.info(f"Conectado ao canal de voz: {ctx.author.voice.channel.name} com volume inicial de {music_manager.volume * 100:.1f}%")
+            else:
+                await ctx.send(embed=embed_error("user_not_in_voice_channel"))
+                return
+
         for entry in entries:
             if not entry or 'url' not in entry:
                 logger.warning(f"Música inválida encontrada e ignorada: {entry}")
@@ -45,7 +66,7 @@ async def process_playlist(ctx, playlist_url, music_manager, ydl_opts, from_db=F
                 'duration': entry.get('duration', 0),
                 'uploader': entry.get('uploader', 'Uploader desconhecido'),
                 'added_by': ctx.author.display_name if added_by_id is None else added_by_id,
-                'thumbnail': entry.get('thumbnail', None),
+                'thumbnail': entry.get('thumbnail', playlist_thumbnail),
                 'channel': ctx.author.voice.channel.name,
             }
             music_manager.add_to_queue(song, added_by_id or ctx.author.id)
@@ -107,7 +128,7 @@ async def play_song(ctx, music_manager, ydl_opts):
         music_manager.voice_client.play(source, after=after_playing)
 
         # Envia feedback sobre a música atual
-        await ctx.send(embed=embed_now_playing(current_song))
+        await ctx.send(embed=embed_now_playing(current_song, ctx.author.voice.channel))
 
     except Exception as e:
         logger.error(f"Erro ao reproduzir música: {e}")

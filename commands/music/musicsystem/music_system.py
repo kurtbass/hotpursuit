@@ -1,8 +1,9 @@
-from utils.database import execute_query
+from utils.database import execute_query, get_user_volume
 from commands.music.musicsystem.embeds import create_embed, embed_now_playing, embed_queue_empty, embed_error, embed_stop_music
 import asyncio
 import discord
 from yt_dlp import YoutubeDL
+from utils.database import get_config
 import logging
 from commands.music.musicsystem.ffmpeg_options import FFMPEG_OPTIONS
 
@@ -14,11 +15,13 @@ class MusicManager:
     """
     def __init__(self, bot):
         self.bot = bot
+        self.voice_channel = None
         self.voice_client = None
         self.music_queue = []  # Fila de músicas
         self.song_history = []  # Histórico de músicas tocadas na sessão
         self.current_song = None  # Música atualmente tocando
         self.volume = 1.0  # Volume padrão (100%)
+        self.dj_role_id = get_config("TAG_DJ")  # ID da role de DJ, padrão é None
 
     def add_to_queue(self, song, added_by_id):
         """
@@ -57,12 +60,13 @@ class MusicManager:
         """
         Resolve a `stream_url` da música se ainda não foi resolvida.
         """
-        if 'stream_url' not in song:
+        if 'stream_url' not in song or not song['stream_url']:
             try:
                 ydl_opts = {'format': 'bestaudio/best', 'quiet': True, 'extract_flat': False}
                 with YoutubeDL(ydl_opts) as ydl:
                     info = ydl.extract_info(song['url'], download=False)
                     song['stream_url'] = info.get('url')
+                    song['thumbnail'] = info.get('thumbnail', song.get('thumbnail'))
             except Exception as e:
                 logger.error(f"Erro ao resolver URL do stream: {e}")
                 raise RuntimeError(f"Erro ao resolver URL do stream: {e}")
@@ -103,19 +107,23 @@ class MusicManager:
                 try:
                     logger.info("Reconectando ao canal de voz...")
                     self.voice_client = await ctx.author.voice.channel.connect()
-                except Exception as e:
-                    logger.error(f"Erro ao tentar reconectar ao canal de voz: {e}")
-                    return
 
-            # Verificar se já há áudio sendo reproduzido
-            if self.voice_client.is_playing():
-                logger.warning("Áudio já está sendo reproduzido. Pulando reprodução duplicada.")
-                return
+                    # Aplicar o volume do banco de dados
+                    user_volume = get_user_volume(ctx.author.id)
+                    self.volume = user_volume if user_volume is not None else 1.0
+
+                except discord.ClientException as e:
+                    if "Already connected to a voice channel" in str(e):
+                        logger.warning("Já conectado ao canal de voz. Continuando...")
+                    else:
+                        logger.error(f"Erro ao tentar reconectar ao canal de voz: {e}")
+                        return
 
             # Resolver URL e iniciar a reprodução
             self.resolve_stream_url(next_song)
             self.set_current_song(next_song)
 
+            # Configurar e tocar a próxima música
             source = discord.PCMVolumeTransformer(
                 discord.FFmpegPCMAudio(next_song['stream_url'], **FFMPEG_OPTIONS),
                 volume=self.volume
@@ -124,15 +132,21 @@ class MusicManager:
             def after_playing(error):
                 if error:
                     logger.error(f"Erro durante a reprodução: {error}")
-                if self.voice_client and self.voice_client.is_playing():
-                    self.voice_client.stop()
                 asyncio.run_coroutine_threadsafe(self.play_next(ctx), ctx.bot.loop)
+
+            if self.voice_client.is_playing() or self.voice_client.is_paused():
+                self.voice_client.stop()
 
             self.voice_client.play(source, after=after_playing)
 
             # Informar sobre a música atual
             await ctx.send(embed=embed_now_playing(next_song))
 
+        except discord.ClientException as e:
+            logger.error(f"Erro no cliente Discord: {e}")
+            if "Not connected to voice" in str(e):
+                await ctx.send(embed=embed_error("Não conectado ao canal de voz."))
+                self.voice_client = None
         except Exception as e:
             logger.error(f"Erro ao reproduzir a próxima música: {e}")
             await ctx.send(embed=embed_error(str(e)))
@@ -150,17 +164,17 @@ class MusicManager:
     async def stop_music(self, ctx):
         """Para a música atual e limpa a fila."""
         try:
-            if self.voice_client and self.voice_client.is_playing():
+            if self.voice_client and (self.voice_client.is_playing() or self.voice_client.is_paused()):
                 self.voice_client.stop()
-                self.clear_queue()
-                await ctx.send(embed=embed_stop_music())
+            self.clear_queue()
+            await ctx.send(embed=embed_stop_music())
         except Exception as e:
             logger.error(f"Erro ao parar a música: {e}")
             await ctx.send(embed=embed_error(str(e)))
 
     def adjust_volume(self, volume):
         """Ajusta o volume da reprodução atual."""
-        if 0.0 <= volume <= 2.0:
+        if 0.0 <= volume <= 1.0:
             self.volume = volume
             if self.voice_client and self.voice_client.source:
                 self.voice_client.source.volume = self.volume
