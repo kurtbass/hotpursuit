@@ -91,6 +91,19 @@ def embed_no_music_paused():
         "Não há nenhuma música pausada no momento."
     )
 
+def embed_remove_usage():
+    return create_embed(
+        "❌ Uso do Comando",
+        "Para remover uma música, forneça o link dela como parâmetro.\nExemplo: `hp!remove <link>`"
+    )
+
+def embed_song_removed(song):
+    return create_embed(
+        "🎶 Música Removida",
+        f"A música **{song['title']}** foi removida da fila."
+    )
+
+
 def embed_error(message, error_detail=""):
     """
     Embed para exibir erros.
@@ -125,6 +138,69 @@ def embed_queue_song_added(song, voice_channel, added_by, is_playlist=False, pla
         "🎶 Música Adicionada",
         description,
         banner=banner
+    )
+
+def embed_loop_single():
+    """
+    Embed para ativar repetição de música atual.
+    """
+    return create_embed(
+        "🔂 Repetição de música ativada",
+        "A música atual será repetida."
+    )
+
+def embed_loop_all():
+    """
+    Embed para ativar repetição de todas as músicas.
+    """
+    return create_embed(
+        "🔁 Repetição de todas as músicas ativada",
+        "Todas as músicas da fila serão repetidas."
+    )
+
+def embed_loop_off():
+    """
+    Embed para desligar a repetição.
+    """
+    return create_embed(
+        "⏹️ Repetição desligada",
+        "Nenhuma música será repetida."
+    )
+
+def embed_loop_cancel():
+    """
+    Embed para cancelar o comando de loop.
+    """
+    return create_embed(
+        "❌ Comando cancelado",
+        "Nenhuma alteração foi feita no modo de repetição."
+    )
+
+def embed_loop_timeout():
+    """
+    Embed para tempo esgotado na escolha de opção.
+    """
+    return create_embed(
+        "⏳ Tempo Esgotado",
+        "Não foi possível concluir a escolha. Tente novamente."
+    )
+
+def embed_shuffle_success():
+    """
+    Embed para exibir que a fila foi embaralhada com sucesso.
+    """
+    return create_embed(
+        "🎶 Fila Embaralhada",
+        "A fila de músicas foi embaralhada com sucesso!"
+    )
+
+def embed_shuffle_error_no_songs():
+    """
+    Embed para exibir erro caso a fila esteja vazia.
+    """
+    return create_embed(
+        "⚠️ Erro",
+        "Não há músicas suficientes na fila para embaralhar."
     )
 
 def embed_queue_cleared():
@@ -254,7 +330,7 @@ def embed_playlist_menu(description=None):
             "3️⃣ Deletar uma playlist salva\n"
             "4️⃣ Deletar todas as playlists"
         ),
-        color=discord.Color.blue()
+        color=get_embed_color()
     )
     embed.set_footer(text="Digite o número correspondente à opção desejada.")
     return embed
@@ -366,3 +442,20 @@ def format_duration(seconds):
     hours, remainder = divmod(seconds, 3600)
     minutes, seconds = divmod(remainder, 60)
     return f"{hours:02}:{minutes:02}:{seconds:02}"
+
+def embed_lyrics(title, artist, lyrics):
+    """
+    Embed para exibir a letra da música em um formato bem estruturado.
+    """
+    embed = discord.Embed(
+        title="",  # Título da música como título principal
+        description=(
+            f"# {title}\n"
+            f"**{artist}**\n\n"  # Artista em negrito
+            f"{lyrics}"          # Letra da música
+        ),
+        color=get_embed_color()  # Utiliza a cor padrão configurada
+    )
+    embed.set_footer(text=get_config("LEMA"))  # Adiciona o lema como rodapé
+    return embed
+

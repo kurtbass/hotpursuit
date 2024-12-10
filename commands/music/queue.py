@@ -28,6 +28,9 @@ class QueueCommand(commands.Cog):
 
         # Subcomando: limpar fila
         if args and args[0].lower() in ["limpar", "clear", "clean"]:
+            if self.music_manager.loop_mode == "single":
+                self.music_manager.loop_mode = "none"
+                logger.info("Loop desativado devido à limpeza da fila.")
             self.music_manager.clear_queue()
             await ctx.send(embed=embed_queue_cleared())
             return

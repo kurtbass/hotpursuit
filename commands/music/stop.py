@@ -34,19 +34,20 @@ class StopMusicCommand(commands.Cog):
             return
 
         try:
-            # Parar a música e limpar a fila
+            # Parar a música, limpar a fila e redefinir o loop
             self.music_manager.voice_client.stop()
             self.music_manager.clear_queue()
             self.music_manager.current_song = None
+            self.music_manager.set_loop_mode("none")  # Desativa o loop
 
-            logger.info(f"Usuário {ctx.author.id} parou a música.")
+            logger.info(f"Usuário {ctx.author.id} parou a música e desativou o loop.")
 
             # Enviar mensagem de confirmação
             await ctx.send(embed=embed_stop_music())
 
         except Exception as e:
             logger.error(f"Erro ao parar a música: {e}")
-            await ctx.send(embed=embed_dj_error)
+            await ctx.send(embed=embed_error("stop_error", str(e)))
 
 async def setup(bot, music_manager):
     await bot.add_cog(StopMusicCommand(bot, music_manager))

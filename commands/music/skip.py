@@ -1,7 +1,9 @@
 import asyncio
 import discord
 from discord.ext import commands
-from commands.music.musicsystem.embeds import embed_dj_error, embed_error, embed_song_skipped, embed_queue_empty, embed_permission_denied
+from commands.music.musicsystem.embeds import (
+    embed_dj_error, embed_error, embed_song_skipped, embed_queue_empty
+)
 import logging
 
 logger = logging.getLogger(__name__)
@@ -23,14 +25,14 @@ class SkipCommand(commands.Cog):
         voice_client = self.music_manager.voice_client
 
         if voice_client is None or not voice_client.is_connected():
-            await ctx.send(embed=embed_error("bot_not_connected"))
+            await ctx.send(embed=embed_error("Bot não está conectado a um canal de voz."))
             return
 
         if not voice_client.is_playing():
-            await ctx.send(embed=embed_error("no_music_playing"))
+            await ctx.send(embed=embed_error("Não há música tocando no momento."))
             return
 
-        # Verifica se o usuário iniciou a sessão ou tem a tag de DJ
+        # Verifica se o usuário tem permissão para pular
         tag_dj_id = self.music_manager.dj_role_id
         if not (ctx.author.id == int(self.music_manager.current_song.get('added_by')) or 
                 discord.utils.get(ctx.author.roles, id=int(tag_dj_id))):
@@ -38,13 +40,19 @@ class SkipCommand(commands.Cog):
             return
 
         try:
-            # Para a música atual antes de avançar
-            voice_client.stop()
+            # Pause a música atual antes de avançar
+            voice_client.pause()
+
+            # Modo 'single': remove o clone adicionado ao topo da fila
+            if self.music_manager.loop_mode == "single":
+                if self.music_manager.music_queue and self.music_manager.music_queue[0] == self.music_manager.current_song:
+                    self.music_manager.music_queue.pop(0)
+                    logger.info("Modo 'single': Clone da música atual removido após o comando de skip.")
 
             # Pular para a próxima música
             next_song = self.music_manager.get_next_song()
+
             if next_song:
-                self.music_manager.save_current_to_history()  # Salvar a música atual no histórico
                 self.music_manager.set_current_song(next_song)  # Atualizar a música atual
 
                 # Resolver `stream_url` caso ainda não esteja resolvido
@@ -66,15 +74,22 @@ class SkipCommand(commands.Cog):
                 # Informar sobre a próxima música
                 await ctx.send(embed=embed_song_skipped(next_song))
             else:
-                # Fila vazia
-                if self.music_manager.current_song:
-                    self.music_manager.save_current_to_history()  # Salvar música atual no histórico
-                    self.music_manager.current_song = None
-                await ctx.send(embed=embed_queue_empty())
+                # Modo 'all': Reinicia a fila a partir do histórico
+                if self.music_manager.loop_mode == "all" and self.music_manager.song_history:
+                    self.music_manager.music_queue = self.music_manager.song_history.copy()
+                    self.music_manager.clear_history()
+                    logger.info("Modo 'all': Fila reiniciada a partir do histórico.")
+                    await self.music_manager.play_next(ctx)
+                else:
+                    # Fila vazia
+                    if self.music_manager.current_song:
+                        self.music_manager.save_current_to_history()  # Salvar música atual no histórico
+                        self.music_manager.current_song = None
+                    await ctx.send(embed=embed_queue_empty())
 
         except Exception as e:
             logger.error(f"Erro ao tentar pular para a próxima música: {e}")
-            await ctx.send(embed=embed_error("skip_error", str(e)))
+            await ctx.send(embed=embed_error(f"Erro ao pular música: {str(e)}"))
 
 
 async def setup(bot, music_manager):

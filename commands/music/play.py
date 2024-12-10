@@ -5,7 +5,6 @@ from commands.music.musicsystem.insert import insert_music
 from commands.music.musicsystem.music_system import MusicManager
 from commands.music.musicsystem.playlists import process_playlist
 from commands.music.musicsystem.voice_utils import join_voice_channel
-from commands.music.musicsystem.play_utils import play_next
 from commands.music.musicsystem.ydl_opts import YDL_OPTS
 from commands.music.musicsystem.ffmpeg_options import FFMPEG_OPTIONS
 from utils.database import get_user_volume
@@ -63,7 +62,7 @@ class PlayCommand(commands.Cog):
             # Verifica se há um voice_client antes de acessar is_playing
             if self.music_manager.voice_client and not self.music_manager.voice_client.is_playing():
                 logger.info("Iniciando reprodução da próxima música na fila.")
-                await play_next(self.music_manager, self.bot)
+                await self.music_manager.play_next(ctx)
 
         except Exception as e:
             # Caso ocorra algum erro ao tentar reproduzir a música

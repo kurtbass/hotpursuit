@@ -13,13 +13,14 @@ async def load_commands(bot):
     music_manager = MusicManager(bot)
 
     base_path = "./commands"
-    logger.info(f"{Fore.CYAN}Verificando a pasta de comandos: {base_path}{Style.RESET_ALL}")
+    logger.info(f"{Fore.CYAN}Iniciando o carregamento dos comandos do caminho: {base_path}{Style.RESET_ALL}")
 
     if not os.path.exists(base_path):
-        logger.warning(f"{Fore.RED}Pasta '{base_path}' não encontrada. Nenhum comando será carregado.{Style.RESET_ALL}")
+        logger.warning(f"{Fore.RED}A pasta '{base_path}' não foi encontrada. Nenhum comando será carregado.{Style.RESET_ALL}")
         return
 
     # Carregar comandos da pasta base (commands)
+    logger.info(f"{Fore.YELLOW}Carregando comandos da pasta base: {base_path}{Style.RESET_ALL}")
     for filename in os.listdir(base_path):
         if filename.endswith(".py") and not filename.startswith("__"):
             command_name = filename[:-3]
@@ -27,11 +28,12 @@ async def load_commands(bot):
                 await bot.load_extension(f"commands.{command_name}")
                 logger.info(f"{Fore.GREEN}Comando 'commands.{command_name}' carregado com sucesso.{Style.RESET_ALL}")
             except Exception as e:
-                logger.error(f"{Fore.RED}Falha ao carregar o comando 'commands.{command_name}': {e}{Style.RESET_ALL}")
+                logger.error(f"{Fore.RED}Erro ao carregar o comando 'commands.{command_name}': {e}{Style.RESET_ALL}")
 
     # Verificar e carregar comandos da subpasta 'music'
     music_path = os.path.join(base_path, "music")
     if os.path.exists(music_path):
+        logger.info(f"{Fore.YELLOW}Carregando comandos da subpasta: {music_path}{Style.RESET_ALL}")
         for filename in os.listdir(music_path):
             if filename.endswith(".py") and not filename.startswith("__"):
                 command_name = filename[:-3]
@@ -42,8 +44,10 @@ async def load_commands(bot):
                         await module.setup(bot, music_manager)  # Passar o MusicManager
                         logger.info(f"{Fore.GREEN}Comando 'commands.music.{command_name}' carregado com sucesso.{Style.RESET_ALL}")
                     else:
-                        logger.error(f"{Fore.RED}Comando 'commands.music.{command_name}' não possui função 'setup'.{Style.RESET_ALL}")
+                        logger.warning(f"{Fore.RED}O comando 'commands.music.{command_name}' não possui uma função 'setup'.{Style.RESET_ALL}")
                 except Exception as e:
-                    logger.error(f"{Fore.RED}Falha ao carregar o comando 'commands.music.{command_name}': {e}{Style.RESET_ALL}")
+                    logger.error(f"{Fore.RED}Erro ao carregar o comando 'commands.music.{command_name}': {e}{Style.RESET_ALL}")
     else:
-        logger.warning(f"{Fore.RED}Subpasta 'music' não encontrada em '{base_path}'. Nenhum comando será carregado.{Style.RESET_ALL}")
+        logger.warning(f"{Fore.RED}A subpasta 'music' não foi encontrada dentro de '{base_path}'. Nenhum comando de música será carregado.{Style.RESET_ALL}")
+
+    logger.info(f"{Fore.CYAN}Carregamento dos comandos concluído.{Style.RESET_ALL}")

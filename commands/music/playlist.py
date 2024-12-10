@@ -66,7 +66,7 @@ class PlaylistCommand(commands.Cog):
             # Verifica se uma playlist com o mesmo nome já existe
             existing = fetchone("SELECT id FROM playlists WHERE userid = ? AND name = ?", (str(ctx.author.id), playlist_name))
             if existing:
-                await ctx.send(embed=embed_error("playlist_name_exists"))
+                await ctx.send(embed=embed_error("Você já tem uma playlist com esse nome."))
                 return
 
             # Insere a playlist na tabela playlists
