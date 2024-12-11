@@ -1,6 +1,6 @@
 import logging
 from discord.ext import commands
-from commands.music.musicsystem.embeds import embed_lyrics, embed_error
+from commands.music.musicsystem.embeds import embed_lyrics, embed_error, embed_searching_lyrics
 from commands.music.musicsystem.music_system import MusicManager
 
 logger = logging.getLogger(__name__)
@@ -29,11 +29,16 @@ class LyricsCommand(commands.Cog):
         title = self.music_manager.current_song.get('title', 'Desconhecido')
         logger.info(f"Buscando letras para a música: {title}")
 
+        # Envia a mensagem informando que a letra está sendo pesquisada
+        searching_message = await ctx.send(embed=embed_searching_lyrics(title))
+
         try:
             await self.music_manager.fetch_lyrics(ctx)
+            await searching_message.delete()  # Apaga a mensagem de "pesquisando"
         except Exception as e:
             logger.error(f"Erro ao buscar letras: {e}")
             await ctx.send(embed=embed_error("Erro ao buscar letras. Tente novamente."))
+            await searching_message.delete()  # Apaga a mensagem de "pesquisando" mesmo em caso de erro
 
 async def setup(bot, music_manager):
     """

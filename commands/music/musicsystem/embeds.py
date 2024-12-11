@@ -459,3 +459,63 @@ def embed_lyrics(title, artist, lyrics):
     embed.set_footer(text=get_config("LEMA"))  # Adiciona o lema como rodapé
     return embed
 
+def embed_radio_menu(radios):
+    """
+    Gera um embed para exibir o menu de rádios.
+
+    :param radios: Lista de rádios.
+    :return: Um embed configurado.
+    """
+    description = "\n".join([f"**{i+1}.** {radio['name']}" for i, radio in enumerate(radios)]) + "\n**18.** Desligar Rádio"
+    return create_embed(
+        "🎵 Menu de Rádios",
+        f"Escolha uma rádio digitando o número correspondente:\n\n{description}"
+    )
+
+def embed_searching_lyrics(title):
+    """
+    Gera um embed para informar que a letra está sendo pesquisada.
+
+    :param title: Título da música que está sendo pesquisada.
+    :return: Um embed configurado.
+    """
+    embed = discord.Embed(
+        title="🔍 Buscando Letra da Música",
+        description=f"Aguarde enquanto buscamos a letra para **{title}**.",
+        color=get_embed_color()
+    )
+    return embed
+
+def embed_radio_now_playing(radio_name, stream_url, banner_url, user):
+    """
+    Gera um embed para exibir informações da rádio atualmente tocando.
+
+    :param radio_name: Nome da rádio.
+    :param stream_url: URL do stream.
+    :param banner_url: URL do banner da rádio.
+    :param user: Usuário que iniciou a reprodução.
+    :return: Um embed configurado.
+    """
+    description = (
+        f"🎙️ **Rádio:** {radio_name}\n"
+        f"🔗 **Stream:** [Clique aqui para ouvir]({stream_url})\n"
+        f"👤 **Solicitada por:** {user.mention}"
+    )
+    return create_embed(
+        "📻 Rádio Tocando Agora",
+        description,
+        banner=banner_url
+    )
+
+
+def embed_radio_stopped():
+    """
+    Gera um embed para informar que a rádio foi desligada.
+
+    :return: Um embed configurado.
+    """
+    return create_embed(
+        "🔇 Rádio Desligada",
+        "A reprodução foi encerrada. Escolha outra rádio para sintonizar ou continue sua experiência musical!"
+    )
+

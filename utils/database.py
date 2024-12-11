@@ -171,3 +171,73 @@ def get_embed_color() -> discord.Colour:
         except ValueError:
             pass
     return discord.Colour.random()
+
+def get_emoji_from_table(table_name: str, identifier: str) -> Optional[str]:
+    """
+    Obtém o código do emoji de uma tabela específica baseado no identifier.
+    
+    :param table_name: Nome da tabela onde o emoji está armazenado.
+    :param identifier: Identificador único do emoji.
+    :return: Código do emoji (<:name:id> ou <a:name:id>) ou None se não encontrado.
+    """
+    query = f"SELECT emoji_code FROM {table_name} WHERE identifier = ?"
+    result = fetchone(query, (identifier,))
+    if result:
+        return result[0]
+    logger.warning(f"Emoji não encontrado na tabela '{table_name}' para o identificador '{identifier}'.")
+    return None
+
+def get_music_emoji(identifier: str) -> Optional[str]:
+    """
+    Obtém um emoji da tabela 'emojis_music'.
+    
+    :param identifier: Identificador único do emoji.
+    :return: Código do emoji ou None se não encontrado.
+    """
+    return get_emoji_from_table("emojis_music", identifier)
+
+def get_error_emoji(identifier: str) -> Optional[str]:
+    """
+    Obtém um emoji da tabela 'emojis_errors'.
+    
+    :param identifier: Identificador único do emoji.
+    :return: Código do emoji ou None se não encontrado.
+    """
+    return get_emoji_from_table("emojis_errors", identifier)
+
+def get_fun_emoji(identifier: str) -> Optional[str]:
+    """
+    Obtém um emoji da tabela 'emojis_fun'.
+    
+    :param identifier: Identificador único do emoji.
+    :return: Código do emoji ou None se não encontrado.
+    """
+    return get_emoji_from_table("emojis_fun", identifier)
+
+def get_number_emoji(identifier: str) -> Optional[str]:
+    """
+    Obtém um emoji da tabela 'emojis_numbers'.
+    
+    :param identifier: Identificador único do emoji.
+    :return: Código do emoji ou None se não encontrado.
+    """
+    return get_emoji_from_table("emojis_numbers", identifier)
+
+def get_clan_management_emoji(identifier: str) -> Optional[str]:
+    """
+    Obtém um emoji da tabela 'emojis_clan_management'.
+    
+    :param identifier: Identificador único do emoji.
+    :return: Código do emoji ou None se não encontrado.
+    """
+    return get_emoji_from_table("emojis_clan_management", identifier)
+
+def get_server_staff_emoji(identifier: str) -> Optional[str]:
+    """
+    Obtém um emoji da tabela 'emojis_server_staff'.
+    
+    :param identifier: Identificador único do emoji.
+    :return: Código do emoji ou None se não encontrado.
+    """
+    return get_emoji_from_table("emojis_server_staff", identifier)
+

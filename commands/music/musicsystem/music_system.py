@@ -1,9 +1,10 @@
 import re
-from utils.database import execute_query, get_user_volume
-from commands.music.musicsystem.embeds import create_embed, embed_now_playing, embed_queue_empty, embed_error, embed_stop_music
+from utils.database import execute_query, get_user_volume, set_user_volume
+from commands.music.musicsystem.embeds import create_embed, embed_now_playing, embed_queue_empty, embed_error, embed_queue_song_added, embed_stop_music
 import asyncio
 import discord
 from yt_dlp import YoutubeDL
+import yt_dlp as youtube_dl
 from utils.database import get_config
 import logging
 from commands.music.musicsystem.ffmpeg_options import FFMPEG_OPTIONS
@@ -11,17 +12,20 @@ from playwright.sync_api import sync_playwright
 from playwright.async_api import async_playwright
 from commands.music.musicsystem.embeds import embed_lyrics, embed_error  # Embeds para exibir letras e erros
 import random
+from urllib.parse import quote
 
 logger = logging.getLogger(__name__)
 
+INACTIVITY_TIMEOUT = 10  # Tempo em segundos antes de desconectar por inatividade
+
 class MusicManager:
-    """
-    Gerenciador centralizado para músicas e lógica de fila.
-    """
     def __init__(self, bot):
+        """
+        Inicializa o gerenciador de música.
+        """
         self.bot = bot
-        self.voice_channel = None
-        self.voice_client = None
+        self.voice_channel = None  # Canal de voz atual
+        self.voice_client = None  # Cliente de voz do bot
         self.music_queue = []  # Fila de músicas
         self.song_history = []  # Histórico de músicas tocadas na sessão
         self.current_song = None  # Música atualmente tocando
@@ -29,13 +33,145 @@ class MusicManager:
         self.dj_role_id = get_config("TAG_DJ")  # ID da role de DJ, padrão é None
         self.loop_mode = "none"  # Modos de loop: "none", "single", "all"
 
+    async def insert_music(self, ctx, query, ydl_opts, added_by_id):
+        """
+        Insere uma música na fila com base em uma consulta.
+        """
+        try:
+            with YoutubeDL(ydl_opts) as ydl:
+                info = ydl.extract_info(query, download=False)
+                if "entries" in info:  # Verifica se é uma playlist
+                    info = info["entries"][0]  # Apenas pega a primeira entrada
+
+                song = {
+                    "title": info.get("title", "Título Desconhecido"),
+                    "url": info.get("url"),
+                    "uploader": info.get("uploader", "Uploader Desconhecido"),
+                    "added_by": added_by_id,
+                    "duration": info.get("duration", 0),
+                }
+
+                # Adiciona a música à fila
+                self.add_to_queue(song, added_by_id)
+
+                # Feedback ao usuário
+                await ctx.send(embed=embed_queue_song_added(song, ctx.author.voice.channel, added_by=added_by_id))
+
+                # Log para depuração
+                logger.info(f"Música adicionada à fila: {song['title']} por {added_by_id}")
+
+        except youtube_dl.DownloadError as e:
+            logger.error(f"Erro ao processar o download da música: {e}")
+            await ctx.send(embed=embed_error("Erro ao baixar a música.", str(e)))
+
+        except Exception as e:
+            logger.error(f"Erro ao inserir música: {e}")
+            await ctx.send(embed=embed_error("Erro inesperado ao inserir a música.", str(e)))
+
     def add_to_queue(self, song, added_by_id):
         """
         Adiciona uma música à fila e registra quem a adicionou.
         """
         song['added_by'] = added_by_id
-        self.music_queue.append(song)
+        self.music_queue.append(song)  # Usa `self.music_queue` consistentemente
         logger.info(f"Música adicionada à fila: {song.get('title', 'Desconhecido')} por {added_by_id}")
+
+    async def play_radio(self, radio_name, stream_url, added_by):
+            """
+            Reproduz uma rádio e define a rádio como a "música atual".
+            
+            :param radio_name: Nome da rádio.
+            :param stream_url: URL do stream da rádio.
+            :param added_by: ID do usuário que adicionou a rádio.
+            """
+            try:
+                # Atualiza o current_song para representar a rádio
+                self.current_song = {
+                    "title": radio_name,
+                    "url": stream_url,
+                    "added_by": added_by,
+                    "type": "radio"  # Identificador para diferenciar músicas e rádios
+                }
+
+                # Configura e inicia a reprodução
+                source = discord.PCMVolumeTransformer(
+                    discord.FFmpegPCMAudio(stream_url, options="-vn"),
+                    volume=self.volume
+                )
+
+                # Para qualquer música/rádio sendo reproduzida e começa a nova reprodução
+                if self.voice_client.is_playing():
+                    self.voice_client.stop()
+
+                self.voice_client.play(source, after=None)
+
+                logger.info(f"Rádio {radio_name} está sendo reproduzida.")
+            except Exception as e:
+                logger.error(f"Erro ao tentar reproduzir a rádio {radio_name}: {e}")
+                raise e
+
+    def stop_radio(self):
+        """
+        Para a reprodução de rádio e limpa o current_song.
+        """
+        if self.voice_client and self.voice_client.is_playing():
+            self.voice_client.stop()
+        self.current_song = None
+        logger.info("Rádio foi desligada.")
+
+    async def join_voice_channel(self, ctx):
+        """
+        Junta o bot ao canal de voz do usuário e ajusta o volume com base no banco de dados.
+
+        :param ctx: Contexto do comando.
+        :return: O objeto VoiceClient conectado ou None se ocorrer um erro.
+        """
+        if ctx.author.voice is None:
+            await ctx.send(embed=embed_error("Você precisa estar conectado a um canal de voz."))
+            return None
+
+        voice_channel = ctx.author.voice.channel
+
+        try:
+            if self.voice_client is None or not self.voice_client.is_connected():
+                self.voice_client = await voice_channel.connect()
+                logger.info(f"Conectado ao canal de voz: {voice_channel.name}")
+            elif self.voice_client.channel != voice_channel:
+                await self.voice_client.move_to(voice_channel)
+                logger.info(f"Movido para o canal de voz: {voice_channel.name}")
+
+            # Ajustar o volume com base no banco de dados ou padrão
+            user_volume = get_user_volume(ctx.author.id)
+            self.volume = user_volume if user_volume is not None else 1.0
+
+            if self.voice_client.source and hasattr(self.voice_client.source, "volume"):
+                self.voice_client.source.volume = self.volume
+            logger.info(f"Volume ajustado para: {self.volume * 100:.1f}%")
+
+        except discord.ClientException as e:
+            logger.error(f"Erro ao conectar ou mover para o canal de voz: {e}")
+            await ctx.send(embed=embed_error("Erro ao conectar ao canal de voz. Verifique as permissões."))
+
+        except discord.Forbidden:
+            logger.error("Permissões insuficientes para conectar ao canal de voz.")
+            await ctx.send(embed=embed_error("Permissões insuficientes para conectar ao canal de voz."))
+            return None
+
+        return self.voice_client
+
+    async def disconnect_on_inactivity(self, inactivity_timeout=300):
+        """
+        Aguarda o tempo de inatividade e desconecta o bot se ainda estiver inativo.
+
+        :param inactivity_timeout: Tempo em segundos antes de desconectar por inatividade.
+        """
+        await asyncio.sleep(inactivity_timeout)
+        if self.voice_client and not self.voice_client.is_playing():
+            await self.voice_client.disconnect()
+            self.voice_client = None
+            logger.info("Desconectado do canal de voz devido à inatividade.")
+            
+        return MusicManager.voice_client
 
     def get_session_owner_id(self):
         """
@@ -67,6 +203,16 @@ class MusicManager:
         if self.current_song:
             self.song_history.append(self.current_song)
         self.current_song = song
+
+    async def disconnect_on_inactivity(music_manager):
+        """
+        Aguarda o tempo de inatividade e desconecta o bot se ainda estiver inativo.
+        """
+        await asyncio.sleep(INACTIVITY_TIMEOUT)
+        if music_manager.voice_client and music_manager.voice_client.is_connected():
+            await music_manager.voice_client.disconnect()
+            music_manager.voice_client = None
+            logger.info("Bot desconectado do canal de voz por inatividade.")
 
     def resolve_stream_url(self, song):
         """
@@ -287,9 +433,9 @@ class MusicManager:
             page = await browser.new_page()
 
             try:
-                # Criar URL de pesquisa
+                # Criar URL de pesquisa com codificação correta
                 base_url = "https://www.letras.mus.br/"
-                formatted_title = title.replace(" ", "%20")
+                formatted_title = quote(title)  # Codifica o título corretamente
                 search_url = f"{base_url}?q={formatted_title}#gsc.tab=0&gsc.q={formatted_title}"
 
                 logger.info(f"Acessando URL: {search_url}")
