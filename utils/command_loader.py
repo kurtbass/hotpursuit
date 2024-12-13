@@ -8,7 +8,7 @@ logger = logging.getLogger(__name__)
 
 async def load_commands(bot):
     """
-    Carrega comandos do bot a partir da pasta 'commands' e 'commands/music'.
+    Carrega comandos do bot a partir das pastas 'commands', 'commands/music' e 'commands/samp'.
     """
     # Inicialize o MusicManager aqui, passando o bot como argumento
     music_manager = MusicManager(bot)
@@ -41,7 +41,7 @@ async def load_commands(bot):
                 try:
                     # Carregar módulo e chamar setup manualmente
                     module = __import__(f"commands.music.{command_name}", fromlist=["setup"])
-                    if hasattr(module, "setup"):
+                    if hasattr(module, "setup") and callable(module.setup):
                         await module.setup(bot, music_manager)  # Passar o MusicManager
                         logger.info(f"{Fore.GREEN}Comando 'commands.music.{command_name}' carregado com sucesso.{Style.RESET_ALL}")
                     else:
@@ -50,5 +50,25 @@ async def load_commands(bot):
                     logger.error(f"{Fore.RED}Erro ao carregar o comando 'commands.music.{command_name}': {e}{Style.RESET_ALL}")
     else:
         logger.warning(f"{Fore.RED}A subpasta 'music' não foi encontrada dentro de '{base_path}'. Nenhum comando de música será carregado.{Style.RESET_ALL}")
+
+    # Verificar e carregar comandos da subpasta 'samp'
+    samp_path = os.path.join(base_path, "samp")
+    if os.path.exists(samp_path):
+        logger.info(f"{Fore.YELLOW}Carregando comandos da subpasta: {samp_path}{Style.RESET_ALL}")
+        for filename in os.listdir(samp_path):
+            if filename.endswith(".py") and not filename.startswith("__"):
+                command_name = filename[:-3]
+                try:
+                    # Carregar módulo e chamar setup manualmente
+                    module = __import__(f"commands.samp.{command_name}", fromlist=["setup"])
+                    if hasattr(module, "setup") and callable(module.setup):
+                        await module.setup(bot)  # Passar o bot diretamente
+                        logger.info(f"{Fore.GREEN}Comando 'commands.samp.{command_name}' carregado com sucesso.{Style.RESET_ALL}")
+                    else:
+                        logger.warning(f"{Fore.RED}O comando 'commands.samp.{command_name}' não possui uma função 'setup'.{Style.RESET_ALL}")
+                except Exception as e:
+                    logger.error(f"{Fore.RED}Erro ao carregar o comando 'commands.samp.{command_name}': {e}{Style.RESET_ALL}")
+    else:
+        logger.warning(f"{Fore.RED}A subpasta 'samp' não foi encontrada dentro de '{base_path}'. Nenhum comando relacionado ao SAMP será carregado.{Style.RESET_ALL}")
 
     logger.info(f"{Fore.CYAN}Carregamento dos comandos concluído.{Style.RESET_ALL}")

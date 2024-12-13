@@ -23,12 +23,12 @@ def embed_now_playing(song, voice_channel):
     :return: Um embed configurado.
     """
     embed = discord.Embed(
-        title="🎶 Tocando Agora",
+        title=f"{get_music_emoji("music_now")} Tocando Agora",
         description=(
             f"**Título:** [{song.get('title', 'Desconhecido')}]({song.get('url', '#')})\n"
-            f"**Canal do YouTube:** {song.get('uploader', 'Desconhecido')}\n"
-            f"**Duração:** {format_duration(song.get('duration', 0))}\n"
-            f"**Adicionado por:** <@{song.get('added_by', 'Desconhecido')}>\n"
+            f"{get_music_emoji("music_youtube")}**Canal do YouTube:** {song.get('uploader', 'Desconhecido')}\n"
+            f"{get_music_emoji("music_duration")}**Duração:** {format_duration(song.get('duration', 0))}\n"
+            f"{get_music_emoji("music_user")}**Adicionado por:** <@{song.get('added_by', 'Desconhecido')}>\n"
             f"**Canal de Voz:** <#{voice_channel.id}>"
         ),
         color=get_embed_color()
