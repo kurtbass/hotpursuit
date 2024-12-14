@@ -5,6 +5,8 @@ from asyncio.log import logger
 from commands.music.musicsystem.embeds import embed_playlist_added, embed_error, embed_now_playing
 from utils.database import get_user_volume, set_user_volume
 import discord
+from colorama import Fore, Style
+
 
 async def process_playlist(ctx, playlist_url, music_manager, ydl_opts, from_db=False, db_links=None, send_embed=True, added_by_id=None):
     """
@@ -41,7 +43,7 @@ async def process_playlist(ctx, playlist_url, music_manager, ydl_opts, from_db=F
         if not music_manager.voice_client or not music_manager.voice_client.is_connected():
             if ctx.author.voice:
                 music_manager.voice_client = await ctx.author.voice.channel.connect()
-                logger.info(f"Conectado ao canal de voz: {ctx.author.voice.channel.name}")
+                logger.info(f"{Fore.CYAN}[PLAYLIST]{Style.RESET_ALL} Conectado ao canal de voz: {ctx.author.voice.channel.name}")
             else:
                 await ctx.send(embed=embed_error("user_not_in_voice_channel"))
                 return
@@ -52,11 +54,11 @@ async def process_playlist(ctx, playlist_url, music_manager, ydl_opts, from_db=F
             user_volume = 1.0  # Volume padrão
             set_user_volume(ctx.author.id, user_volume)
         music_manager.volume = user_volume
-        logger.info(f"Volume inicial ajustado para {music_manager.volume * 100:.1f}%")
+        logger.info(f"{Fore.GREEN}[VOLUME]{Style.RESET_ALL} Volume inicial ajustado para {music_manager.volume * 100:.1f}%")
 
         for entry in entries:
             if not entry or 'url' not in entry:
-                logger.warning(f"Música inválida encontrada e ignorada: {entry}")
+                logger.warning(f"{Fore.YELLOW}[PLAYLIST]{Style.RESET_ALL} Música inválida encontrada e ignorada: {entry}")
                 continue
             song = {
                 'title': entry.get('title', 'Título desconhecido'),
@@ -70,6 +72,9 @@ async def process_playlist(ctx, playlist_url, music_manager, ydl_opts, from_db=F
             music_manager.add_to_queue(song, added_by_id or ctx.author.id)
             valid_songs += 1
 
+        # Log consolidado no terminal
+        logger.info(f"{Fore.MAGENTA}[PLAYLIST]{Style.RESET_ALL} {valid_songs} músicas adicionadas da playlist '{playlist_title}' por {ctx.author.name}.")
+
         if send_embed:
             await ctx.send(embed=embed_playlist_added(
                 title=playlist_title,
@@ -81,7 +86,7 @@ async def process_playlist(ctx, playlist_url, music_manager, ydl_opts, from_db=F
             ))
 
     except Exception as e:
-        logger.error(f"Erro ao processar playlist: {e}")
+        logger.error(f"{Fore.RED}[ERROR]{Style.RESET_ALL} Erro ao processar playlist: {e}")
         if send_embed:
             await ctx.send(embed=embed_error("playlist_processing_error", str(e)))
 
@@ -103,7 +108,7 @@ async def play_song(ctx, music_manager, ydl_opts):
             if music_manager.voice_client:
                 await music_manager.voice_client.disconnect()
                 music_manager.voice_client = None
-                logger.info("Bot desconectado por inatividade.")
+                logger.info(f"{Fore.YELLOW}[MUSIC]{Style.RESET_ALL} Bot desconectado por inatividade.")
             return
 
         # Resolve a URL da música, se necessário
@@ -125,14 +130,15 @@ async def play_song(ctx, music_manager, ydl_opts):
 
         def after_playing(error):
             if error:
-                logger.error(f"Erro durante a reprodução: {error}")
+                logger.error(f"{Fore.RED}[ERROR]{Style.RESET_ALL} Erro durante a reprodução: {error}")
             ctx.bot.loop.create_task(play_song(ctx, music_manager, ydl_opts))
 
         music_manager.voice_client.play(source, after=after_playing)
 
-        # Envia feedback sobre a música atual
+        # Log e feedback no bot
+        logger.info(f"{Fore.BLUE}[NOW PLAYING]{Style.RESET_ALL} Reproduzindo agora: {current_song['title']} por {ctx.author.name}")
         await ctx.send(embed=embed_now_playing(current_song, ctx.author.voice.channel))
 
     except Exception as e:
-        logger.error(f"Erro ao reproduzir música: {e}")
+        logger.error(f"{Fore.RED}[ERROR]{Style.RESET_ALL} Erro ao reproduzir música: {e}")
         await ctx.send(embed=embed_error("play_song_error", str(e)))

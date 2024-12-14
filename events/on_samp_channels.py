@@ -9,7 +9,7 @@ class SampChannels(commands.Cog):
         self.bot = bot
         self.update_task = None
         self.current_status = "off"  # Status inicial
-        self.update_interval = 180  # Intervalo em segundos entre atualizações
+        self.update_interval = 300  # Intervalo em segundos entre atualizações
         self.quick_check_interval = 30  # Intervalo mais curto caso os nomes não precisem de mudança
         self.rate_limit_penalty = 5  # Penalidade adicional em segundos ao detectar rate limit
         self.max_attempts = 5  # Tentativas máximas antes de marcar como offline
@@ -40,26 +40,24 @@ class SampChannels(commands.Cog):
                     await asyncio.sleep(self.update_interval)
                     continue
 
-                # Verifica o status atual do listener
-                status = listener.get_status()
-                if status != self.current_status:
-                    print(f"[SAMP CHANNELS] Mudança detectada no status do listener: {self.current_status} -> {status}")
-                    self.current_status = status
+                # Atualizar informações do servidor SA-MP
+                print("[SAMP CHANNELS] Tentando obter informações do servidor SA-MP...")
+                server_success = await listener.fetch_server_info()
 
-                if status == "on":
-                    print("[SAMP CHANNELS] Atualizando canais...")
-                    channels_updated = await self.update_channels(listener)
-                    if not channels_updated:
-                        print("[SAMP CHANNELS] Nenhuma atualização necessária. Verificando o servidor novamente.")
-                        server_success = await self.retry_server_update(listener)
-                        if not server_success:
-                            print("[SAMP CHANNELS] Informações do servidor indisponíveis após tentativas.")
-                            await self.set_channels_offline()
-                    sleep_interval = self.quick_check_interval if not channels_updated else self.update_interval
-                elif status == "off":
-                    print("[SAMP CHANNELS] Listener desligado. Parando atualizações dos canais.")
-                    await self.set_channels_offline()
-                    sleep_interval = self.update_interval
+                if not server_success:
+                    print("[SAMP CHANNELS] Não foi possível obter informações do servidor. Servidor marcado como offline.")
+                    self.current_status = "off"
+                else:
+                    self.current_status = "on"
+
+                # Atualizar canais
+                print("[SAMP CHANNELS] Atualizando canais...")
+                channels_updated = await self.update_channels(listener)
+
+                # Intervalo de espera
+                sleep_interval = (
+                    self.quick_check_interval if not channels_updated else self.update_interval
+                )
             except discord.errors.HTTPException as e:
                 if e.status == 429:
                     retry_after = e.response.json().get("retry_after", self.rate_limit_penalty)
@@ -75,19 +73,6 @@ class SampChannels(commands.Cog):
             # Espera o intervalo determinado antes de verificar novamente
             print(f"[SAMP CHANNELS] Aguardando {sleep_interval} segundos antes da próxima verificação.")
             await asyncio.sleep(sleep_interval)
-
-    async def retry_server_update(self, listener):
-        """
-        Tenta atualizar as informações do servidor várias vezes antes de marcar como offline.
-        """
-        for attempt in range(1, self.max_attempts + 1):
-            print(f"[SAMP CHANNELS] Tentativa {attempt} de {self.max_attempts} para atualizar informações do servidor...")
-            server_success = await listener.fetch_server_info()
-            if server_success:
-                print("[SAMP CHANNELS] Informações do servidor atualizadas com sucesso.")
-                return True
-            await asyncio.sleep(self.quick_check_interval)
-        return False
 
     async def update_channels(self, listener):
         """

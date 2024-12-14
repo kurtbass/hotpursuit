@@ -1,4 +1,3 @@
-from utils.database import get_emoji_from_table, get_fun_emoji, get_music_emoji, get_error_emoji, get_number_emoji, get_clan_management_emoji, get_server_staff_emoji
 import sqlite3
 import logging
 import discord
@@ -32,21 +31,23 @@ if not TOKEN:
 INTENTS = discord.Intents.default()
 INTENTS.message_content = True  # Ativar leitura de conteúdo de mensagens
 
+
+# Funções utilitárias para banco de dados
 def execute_query(query, params=()):
     """
     Executa uma query no banco de dados e retorna o cursor.
     """
     try:
-        logger.debug(f"{Fore.CYAN}Conectando ao banco de dados: {DATABASE_URL}{Style.RESET_ALL}")
         with sqlite3.connect(DATABASE_URL) as conn:
             cursor = conn.cursor()
             cursor.execute(query, params)
             conn.commit()
-            logger.info(f"{Fore.GREEN}Query executada com sucesso: {query} | Parâmetros: {params}{Style.RESET_ALL}")
+            logger.debug(f"Query executada com sucesso: {query} | Parâmetros: {params}")
             return cursor
     except sqlite3.Error as e:
-        logger.error(f"{Fore.RED}Erro ao executar a query '{query}' com parâmetros {params}: {e}{Style.RESET_ALL}")
+        logger.error(f"Erro ao executar a query '{query}' com parâmetros {params}: {e}")
         return None
+
 
 def fetchone(query, params=()):
     """
@@ -54,10 +55,9 @@ def fetchone(query, params=()):
     """
     cursor = execute_query(query, params)
     if cursor:
-        result = cursor.fetchone()
-        logger.debug(f"{Fore.YELLOW}Resultado fetchone: {result}{Style.RESET_ALL}")
-        return result
+        return cursor.fetchone()
     return None
+
 
 def fetchall(query, params=()):
     """
@@ -65,19 +65,20 @@ def fetchall(query, params=()):
     """
     cursor = execute_query(query, params)
     if cursor:
-        results = cursor.fetchall()
-        logger.debug(f"{Fore.YELLOW}Resultados fetchall: {results}{Style.RESET_ALL}")
-        return results
+        return cursor.fetchall()
     return []
 
+
+# Funções para configurações do bot
 def get_config(key):
     """
     Obtém um valor da tabela 'configs' pelo seu key.
     """
     result = fetchone('SELECT value FROM configs WHERE key = ?', (key,))
     if not result:
-        logger.warning(f"{Fore.RED}Configuração não encontrada para a chave: {key}{Style.RESET_ALL}")
+        logger.warning(f"Configuração não encontrada para a chave: {key}")
     return result[0] if result else None
+
 
 def get_prefix():
     """
@@ -85,16 +86,17 @@ def get_prefix():
     """
     result = get_config('PREFIXO')
     if not result:
-        logger.warning(f"{Fore.YELLOW}Prefixo não encontrado no banco de dados. Usando o valor padrão '!'.{Style.RESET_ALL}")
+        logger.warning("Prefixo não encontrado no banco de dados. Usando o valor padrão '!'.")
     return result if result else '!'
+
 
 def get_restart_data():
     """
     Obtém o status de reinício da tabela 'restart'.
     """
     result = fetchone('SELECT restart_status, canal, user FROM restart WHERE rowid = 1')
-    logger.debug(f"{Fore.CYAN}Dados de reinício obtidos: {result}{Style.RESET_ALL}")
     return result or (0, None, None)
+
 
 def clear_restart_status():
     """
@@ -105,11 +107,33 @@ def clear_restart_status():
         SET restart_status = 0, canal = NULL, user = NULL
         WHERE rowid = 1
     ''')
-    logger.info(f"{Fore.GREEN}Status de reinício restaurado com sucesso.{Style.RESET_ALL}")
+    logger.info("Status de reinício restaurado com sucesso.")
 
+
+# Função para obter o lema
+def get_lema():
+    """
+    Obtém o lema, imagem do lema, e o nome do clã do banco de dados.
+    Retorna uma string formatada com o nome do clã, lema e a URL da imagem correspondente.
+    """
+    lema = get_config("LEMA") or "Potência e Precisão, Sempre na Frente!"  # Lema padrão
+    lema_img = get_config("LEMA_IMG")  # Pode ser NULL no banco
+    nome_do_cla = get_config("NOME_DO_CLA") or "Hot Pursuit"  # Nome padrão do clã
+
+    # Se a imagem do lema não estiver configurada, use o ícone do servidor
+    if not lema_img:
+        servidor_id = get_config("SERVIDOR")  # ID do servidor
+        if servidor_id:
+            lema_img = f"https://cdn.discordapp.com/icons/{servidor_id}/{servidor_id}.png?size=256"
+        else:
+            lema_img = None  # Não foi possível encontrar uma imagem para exibir
+
+    return lema, lema_img, nome_do_cla
+
+
+# Função necessária para registrar como extensão
 async def setup(bot):
     """
-    Função necessária para registrar como extensão.
-    Este módulo não adiciona Cogs, mas pode ser usado para inicializar logs ou testar conexões.
+    Adiciona as funções de configuração ao bot como uma extensão.
     """
-    logger.info(f"{Fore.CYAN}Módulo 'utils.config' carregado com sucesso.{Style.RESET_ALL}")
+    logger.info("Módulo 'utils.config' carregado com sucesso.")

@@ -21,6 +21,18 @@ class PlayCommand(commands.Cog):
         self.music_manager = music_manager
         self.ydl_opts = YDL_OPTS  # Certifique-se de definir corretamente aqui
 
+class PlayCommand(commands.Cog):
+    """
+    Comando para reproduzir músicas e playlists.
+    """
+    def __init__(self, bot, music_manager: MusicManager):
+        """
+        Inicializa o comando Play.
+        """
+        self.bot = bot
+        self.music_manager = music_manager
+        self.ydl_opts = YDL_OPTS  # Certifique-se de definir corretamente aqui
+
     @commands.command(name="play", aliases=["p", "tocar"])
     async def play(self, ctx, *, query: str = None):
         if not query:
@@ -43,7 +55,8 @@ class PlayCommand(commands.Cog):
             # Determina se é playlist ou música individual
             if "playlist" in query.lower() or "list=" in query:
                 logger.info(f"Processando playlist: {query}")
-                await process_playlist(ctx, query, self.music_manager, added_by_id=ctx.author.id)
+                # Incluindo `ydl_opts` na chamada da função
+                await process_playlist(ctx, query, self.music_manager, self.ydl_opts, added_by_id=ctx.author.id)
             else:
                 logger.info(f"Adicionando música: {query}")
                 await self.music_manager.insert_music(ctx, query, self.ydl_opts, added_by_id=ctx.author.id)
@@ -55,7 +68,6 @@ class PlayCommand(commands.Cog):
         except Exception as e:
             logger.error(f"Erro ao tentar reproduzir música ou playlist: {e}")
             await ctx.send(embed=embed_error("Erro ao tentar reproduzir música ou playlist."))
-
 
 async def setup(bot, music_manager):
     """

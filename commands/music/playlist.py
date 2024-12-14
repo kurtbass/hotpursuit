@@ -11,8 +11,10 @@ from commands.music.musicsystem.embeds import (
     embed_all_playlists_deleted
 )
 from utils.database import fetchall, fetchone, execute_query
+from colorama import Fore, Style
 
 logger = logging.getLogger(__name__)
+
 
 class PlaylistCommand(commands.Cog):
     def __init__(self, bot, music_manager):
@@ -85,6 +87,7 @@ class PlaylistCommand(commands.Cog):
                     (playlist_id, song['title'], song['url'], song['duration'], song['uploader'], song['thumbnail'])
                 )
 
+            logger.info(f"{Fore.GREEN}[PLAYLIST]{Style.RESET_ALL} Playlist '{playlist_name}' salva por {ctx.author.name} com {len(self.music_manager.music_queue)} músicas.")
             await ctx.send(embed=embed_playlist_saved(playlist_name, total_duration, ctx.author))
         except asyncio.TimeoutError:
             await ctx.send(embed=embed_error("timeout"))
@@ -133,7 +136,9 @@ class PlaylistCommand(commands.Cog):
                     'added_by': ctx.author.mention
                 }, ctx.author.id)
 
-            await ctx.send(embed=embed_playlist_loaded(playlist_name, len(songs), playlist_duration, ctx.author))
+            banner_url = ctx.author.avatar.url if ctx.author.avatar else None
+            logger.info(f"{Fore.GREEN}[PLAYLIST]{Style.RESET_ALL} {len(songs)} músicas carregadas da playlist '{playlist_name}' por {ctx.author.name}.")
+            await ctx.send(embed=embed_playlist_loaded(playlist_name, len(songs), playlist_duration, ctx.author, banner_url=banner_url))
 
             # Garantir que o bot esteja conectado ao canal de voz
             if not self.music_manager.voice_client or not self.music_manager.voice_client.is_connected():
@@ -165,6 +170,7 @@ class PlaylistCommand(commands.Cog):
         execute_query("DELETE FROM playlists WHERE userid = ?", (str(ctx.author.id),))
         execute_query("DELETE FROM playlist_songs WHERE playlist_id IN (SELECT id FROM playlists WHERE userid = ?)", (str(ctx.author.id),))
 
+        logger.info(f"{Fore.YELLOW}[PLAYLIST]{Style.RESET_ALL} Todas as playlists de {ctx.author.name} foram removidas.")
         await ctx.send(embed=embed_all_playlists_deleted())
 
 

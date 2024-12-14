@@ -1,18 +1,36 @@
 from utils.database import get_emoji_from_table, get_fun_emoji, get_music_emoji, get_error_emoji, get_number_emoji, get_clan_management_emoji, get_server_staff_emoji
 import discord
 from utils.database import get_embed_color, get_config
+from utils.config import get_lema
 
 def create_embed(title, description, color=None, banner=None):
     """
-    Cria uma mensagem embed personalizada.
+    Cria uma mensagem embed personalizada com o lema e o nome do clã.
+
+    :param title: Título do embed.
+    :param description: Descrição do embed.
+    :param color: Cor personalizada para o embed (opcional).
+    :param banner: URL da imagem para o banner do embed (opcional).
+    :return: Um objeto discord.Embed configurado.
     """
+    # Define a cor padrão se nenhuma cor for fornecida
     color = color or get_embed_color()
     embed = discord.Embed(title=title, description=description, color=color)
-    embed.set_footer(text=get_config("LEMA"))
+
+    # Obtém os valores do lema, imagem do lema e nome do clã
+    lema, lema_img, nome_do_cla = get_lema()
+
+    # Adiciona o rodapé com o lema e a imagem do lema (se disponível)
+    if lema_img:
+        embed.set_footer(text=f"{nome_do_cla} • {lema}", icon_url=lema_img)
+    else:
+        embed.set_footer(text=f"{nome_do_cla} • {lema}")
+
+    # Adiciona o banner, se fornecido
     if banner:
         embed.set_image(url=banner)
+
     return embed
-    
 
 def embed_now_playing(song, voice_channel):
     """
