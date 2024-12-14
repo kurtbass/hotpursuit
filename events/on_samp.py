@@ -15,27 +15,32 @@ class SampListener(commands.Cog):
         self.status = "off"  # Inicializa o status como 'off'
         self.server_info = None  # Armazena informações gerais do servidor
         self.players = {"online": 0, "max": 0}  # Armazena jogadores online e máximo
-        self.update_task = None
         self.server_ip = "15.235.123.105"
         self.server_port = 7777
         self.samp_query = SampQueryAPI(self.server_ip, self.server_port)
-        self.max_retries = 10  # Máximo de tentativas antes de marcar como offline
-        self.retry_interval = 5  # Intervalo (em segundos) entre as tentativas bem-sucedidas
-        self.failed_retry_interval = 30  # Intervalo após tentativas falhas
-        self.success = False  # Indica o estado da última atualização
 
     @commands.Cog.listener()
     async def on_ready(self):
         """
-        Listener ativado quando o bot está pronto. Verifica a categoria e inicia o processo de atualização.
+        Listener ativado quando o bot está pronto. Verifica a categoria e status inicial.
         """
-        print("[SAMP LISTENER] Verificando a configuração da categoria SAMP...")
-        self.status = await self.verify_category()
-        print(f"[SAMP LISTENER] Status inicial: {self.status}")
+        print("[SAMP LISTENER] Iniciando validação inicial...")
 
-        if self.status == "on" and not self.update_task:
-            self.update_task = asyncio.create_task(self.update_server_info_loop())
-            print("[SAMP LISTENER] Loop de atualização iniciado.")
+        # Verificar a categoria e os canais
+        category_valid = await self.verify_category()
+        if not category_valid:
+            print("[SAMP LISTENER] Categoria ou canais inválidos. Listener permanecerá desligado.")
+            self.status = "off"
+            return
+
+        # Buscar informações do servidor
+        server_online = await self.fetch_server_info()
+        if server_online:
+            print("[SAMP LISTENER] Informações do servidor verificadas. Listener ativado.")
+            self.status = "on"
+        else:
+            print("[SAMP LISTENER] Falha ao obter informações do servidor. Listener permanecerá desligado.")
+            self.status = "off"
 
     async def verify_category(self):
         """
@@ -44,81 +49,65 @@ class SampListener(commands.Cog):
         category_id = fetchone("SELECT id FROM canais WHERE tipodecanal = ?", ("samp_categoria",))
         if not category_id:
             print("[SAMP LISTENER] Categoria não configurada no banco de dados.")
-            return "off"
+            return False
 
         category = discord.utils.get(self.bot.guilds[0].categories, id=category_id[0])
         if not category:
             print("[SAMP LISTENER] Categoria não encontrada no servidor.")
-            return "off"
+            return False
 
         required_channels = ["samp_status", "samp_jogadores"]
         for channel_type in required_channels:
             channel_id = fetchone("SELECT id FROM canais WHERE tipodecanal = ?", (channel_type,))
             if not channel_id or not self.bot.get_channel(channel_id[0]):
                 print(f"[SAMP LISTENER] Canal '{channel_type}' não encontrado ou configurado incorretamente.")
-                return "off"
+                return False
 
         print("[SAMP LISTENER] Categoria e canais configurados corretamente.")
-        return "on"
+        return True
 
-    async def update_server_info_loop(self):
+    async def fetch_server_info(self):
         """
-        Atualiza as informações do servidor periodicamente.
+        Obtém informações do servidor SA-MP sob demanda.
         """
-        while True:
-            try:
-                success = await self.try_update_server_info()
-                if not success:
-                    print("[SAMP LISTENER] Falhou em obter informações do servidor após múltiplas tentativas.")
-                    self.server_info = None
-                    self.players = {"online": 0, "max": 0}
-                self.success = success
-            except Exception as e:
-                print(f"[SAMP LISTENER] Erro durante o loop de atualização: {e}")
-                self.success = False
+        try:
+            if self.samp_query.is_online():
+                info = self.samp_query.get_info()
+                if info:
+                    self.server_info = {
+                        "state": "Online",
+                        "hostname": info["hostname"],
+                        "gamemode": info["gamemode"],
+                        "mapname": info["mapname"],
+                    }
+                    self.players = {
+                        "online": info["players"],
+                        "max": info["maxplayers"]
+                    }
+                    print("[SAMP LISTENER] Informações do servidor obtidas com sucesso.")
+                    return True
+            else:
+                print("[SAMP LISTENER] Servidor SA-MP está offline ou inacessível.")
+        except Exception as e:
+            print(f"[SAMP LISTENER] Erro ao buscar informações do servidor: {e}")
 
-            # Define o intervalo com base no sucesso ou falha
-            interval = self.retry_interval if self.success else self.failed_retry_interval
-            await asyncio.sleep(interval)
-
-    async def try_update_server_info(self):
-        """
-        Tenta atualizar as informações do servidor com múltiplas tentativas.
-        """
-        for attempt in range(1, self.max_retries + 1):
-            try:
-                if self.samp_query.is_online():
-                    info = self.samp_query.get_info()
-                    if info:
-                        self.server_info = {
-                            "state": "Online",
-                            "hostname": info["hostname"],
-                            "gamemode": info["gamemode"],
-                            "mapname": info["mapname"],
-                        }
-                        self.players = {
-                            "online": info["players"],
-                            "max": info["maxplayers"]
-                        }
-                        return True
-            except socket.timeout:
-                if attempt == self.max_retries:
-                    print(f"[SAMP LISTENER] Timeout após {self.max_retries} tentativas.")
-                else:
-                    # Não exibe nada para tentativas intermediárias
-                    await asyncio.sleep(self.retry_interval)
-
-        # Todas as tentativas falharam
-        print("[SAMP LISTENER] Todas as tentativas de conexão falharam.")
+        self.server_info = None
+        self.players = {"online": 0, "max": 0}
         return False
 
     def get_status(self):
         return self.status
 
     def get_server_info(self):
+        """
+        Retorna as informações do servidor.
+        """
         return self.server_info
 
     def get_player_info(self):
+        """
+        Retorna as informações dos jogadores.
+        """
         return self.players
 
 
@@ -127,9 +116,12 @@ class SampQueryAPI:
         self.ip = ip
         self.port = port
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        self.socket.settimeout(5)
+        self.socket.settimeout(15)
 
     def is_online(self):
+        """
+        Verifica se o servidor está online.
+        """
         try:
             self.socket.sendto(self._build_packet("i"), (self.ip, self.port))
             data, _ = self.socket.recvfrom(4096)
@@ -139,6 +131,9 @@ class SampQueryAPI:
             return False
 
     def get_info(self):
+        """
+        Obtém informações do servidor.
+        """
         try:
             self.socket.sendto(self._build_packet("i"), (self.ip, self.port))
             data, _ = self.socket.recvfrom(4096)
@@ -148,12 +143,18 @@ class SampQueryAPI:
             return None
 
     def _build_packet(self, payload):
+        """
+        Constrói o pacote de consulta para o servidor SA-MP.
+        """
         ip_parts = [int(x) for x in self.ip.split(".")]
         port_low = self.port & 0xFF
         port_high = (self.port >> 8) & 0xFF
         return b"SAMP" + bytes(ip_parts) + bytes([port_low, port_high]) + payload.encode()
 
     def _parse_info(self, data):
+        """
+        Analisa os dados recebidos do servidor.
+        """
         try:
             offset = 11
             password = data[offset]

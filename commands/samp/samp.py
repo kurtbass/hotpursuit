@@ -17,7 +17,12 @@ class SampCommand(commands.Cog):
             listener.status = status
             print(f"[SAMP COMMAND] Listener atualizado para: {status}")
             if status == "on":
-                await self.update_channels(listener)  # Atualiza canais ao ligar
+                # Revalidar informações do servidor
+                server_updated = await listener.fetch_server_info()
+                if server_updated:
+                    print("[SAMP COMMAND] Listener sincronizado com as novas informações do servidor.")
+                else:
+                    print("[SAMP COMMAND] Falha ao sincronizar o Listener com o servidor.")
         else:
             print("[SAMP COMMAND] SampListener não encontrado.")
 
@@ -126,7 +131,6 @@ class SampCommand(commands.Cog):
         lema = get_config("LEMA") or "Bot oficial"
         category_name = "Brasil Cidade Vida Real"
 
-        # Consultar informações do SampListener
         listener = self.bot.get_cog("SampListener")
         if not listener:
             embed = discord.Embed(
@@ -138,11 +142,13 @@ class SampCommand(commands.Cog):
             await ctx.send(embed=embed)
             return
 
+        # Obter status do servidor
         server_info = listener.get_server_info()
         player_info = listener.get_player_info()
         status = "🟢 Online" if server_info else "🔴 Offline"
         players_name = f"Jogadores: {player_info.get('online', 0)}/{player_info.get('max', 0)}"
 
+        # Verificar se a categoria já existe
         existing_category = discord.utils.get(ctx.guild.categories, name=category_name)
         if existing_category:
             await ctx.send("🔄 A categoria já existe. Sincronizando IDs...")
@@ -159,21 +165,20 @@ class SampCommand(commands.Cog):
                 "UPDATE canais SET id = ? WHERE tipodecanal = ?", (existing_category.id, "samp_categoria")
             )
             await self.update_listener_status("on")
-            embed = discord.Embed(
-                title="✅ Categoria Sincronizada",
-                description="Os IDs foram sincronizados com sucesso.",
-                color=get_embed_color()
-            )
-            embed.set_footer(text=lema)
-            await ctx.send(embed=embed)
             return
 
+        # Criar nova categoria e canais
         try:
             category = await ctx.guild.create_category(category_name)
             await category.edit(position=0)
 
-            status_channel = await category.create_voice_channel(f"Status: {status}")
-            players_channel = await category.create_voice_channel(players_name)
+            # Configurar permissões para negar `connect` ao @everyone
+            permissions = {
+                ctx.guild.default_role: discord.PermissionOverwrite(connect=False)
+            }
+
+            status_channel = await category.create_voice_channel(f"Status: {status}", overwrites=permissions)
+            players_channel = await category.create_voice_channel(players_name, overwrites=permissions)
 
             execute_query(
                 "INSERT INTO canais (tipodecanal, id) VALUES (?, ?) ON CONFLICT(tipodecanal) DO UPDATE SET id=excluded.id",

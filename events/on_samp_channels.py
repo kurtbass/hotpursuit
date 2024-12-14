@@ -9,8 +9,10 @@ class SampChannels(commands.Cog):
         self.bot = bot
         self.update_task = None
         self.current_status = "off"  # Status inicial
-        self.update_interval = 120  # Intervalo em segundos entre atualizações
-        self.quick_check_interval = 10  # Intervalo mais curto caso os nomes não precisem de mudança
+        self.update_interval = 180  # Intervalo em segundos entre atualizações
+        self.quick_check_interval = 30  # Intervalo mais curto caso os nomes não precisem de mudança
+        self.rate_limit_penalty = 5  # Penalidade adicional em segundos ao detectar rate limit
+        self.max_attempts = 5  # Tentativas máximas antes de marcar como offline
 
     @commands.Cog.listener()
     async def on_ready(self):
@@ -21,7 +23,6 @@ class SampChannels(commands.Cog):
 
         # Inicia o loop regular de verificação
         if not self.update_task:
-            await asyncio.sleep(120)
             self.update_task = asyncio.create_task(self.manage_updates())
             print("[SAMP CHANNELS] Loop de verificação de status iniciado.")
 
@@ -46,18 +47,24 @@ class SampChannels(commands.Cog):
                     self.current_status = status
 
                 if status == "on":
+                    print("[SAMP CHANNELS] Atualizando canais...")
                     channels_updated = await self.update_channels(listener)
+                    if not channels_updated:
+                        print("[SAMP CHANNELS] Nenhuma atualização necessária. Verificando o servidor novamente.")
+                        server_success = await self.retry_server_update(listener)
+                        if not server_success:
+                            print("[SAMP CHANNELS] Informações do servidor indisponíveis após tentativas.")
+                            await self.set_channels_offline()
                     sleep_interval = self.quick_check_interval if not channels_updated else self.update_interval
                 elif status == "off":
                     print("[SAMP CHANNELS] Listener desligado. Parando atualizações dos canais.")
                     await self.set_channels_offline()
                     sleep_interval = self.update_interval
             except discord.errors.HTTPException as e:
-                # Lida com rate limits e ajusta o tempo de espera
-                if e.status == 429 and "retry_after" in e.response.json():
-                    retry_after = e.response.json()["retry_after"] + 1  # Adiciona 1 segundo extra
-                    print(f"[SAMP CHANNELS] Rate limit detectado. Aguardando {retry_after} segundos antes de tentar novamente.")
-                    sleep_interval = retry_after
+                if e.status == 429:
+                    retry_after = e.response.json().get("retry_after", self.rate_limit_penalty)
+                    sleep_interval = retry_after + self.rate_limit_penalty
+                    print(f"[SAMP CHANNELS] Rate limit detectado. Aguardando {sleep_interval} segundos.")
                 else:
                     print(f"[SAMP CHANNELS] Erro inesperado da API do Discord: {e}")
                     sleep_interval = self.update_interval
@@ -66,7 +73,21 @@ class SampChannels(commands.Cog):
                 sleep_interval = self.update_interval
 
             # Espera o intervalo determinado antes de verificar novamente
+            print(f"[SAMP CHANNELS] Aguardando {sleep_interval} segundos antes da próxima verificação.")
             await asyncio.sleep(sleep_interval)
+
+    async def retry_server_update(self, listener):
+        """
+        Tenta atualizar as informações do servidor várias vezes antes de marcar como offline.
+        """
+        for attempt in range(1, self.max_attempts + 1):
+            print(f"[SAMP CHANNELS] Tentativa {attempt} de {self.max_attempts} para atualizar informações do servidor...")
+            server_success = await listener.fetch_server_info()
+            if server_success:
+                print("[SAMP CHANNELS] Informações do servidor atualizadas com sucesso.")
+                return True
+            await asyncio.sleep(self.quick_check_interval)
+        return False
 
     async def update_channels(self, listener):
         """
@@ -75,9 +96,8 @@ class SampChannels(commands.Cog):
         Retorna True se os canais foram atualizados, False caso contrário.
         """
         try:
-            # Obtém informações do servidor e jogadores do listener
             server_info = listener.get_server_info()
-            player_info = listener.get_player_info()  # Obter jogadores online e máximo
+            player_info = listener.get_player_info()
 
             if not server_info:
                 print("[SAMP CHANNELS] Nenhuma informação do servidor disponível. Atualizando para offline.")
@@ -100,24 +120,21 @@ class SampChannels(commands.Cog):
                 print("[SAMP CHANNELS] Um ou mais canais não foram encontrados no servidor.")
                 return False
 
-            # Atualizar o canal de status, verificando se há mudança
-            status = "🟢 Online" if server_info else "🔴 Offline"
+            # Atualizar os canais apenas se necessário
             updated = False
+            status_name = f"Status: {'🟢 Online' if server_info else '🔴 Offline'}"
+            players_name = f"Jogadores: {player_info.get('online', 0)}/{player_info.get('max', 0)}"
 
-            if status_channel.name != f"Status: {status}":
-                await status_channel.edit(name=f"Status: {status}")
-                print(f"[SAMP CHANNELS] Canal de status atualizado para: {status}")
+            if status_channel.name != status_name:
+                await status_channel.edit(name=status_name)
+                print(f"[SAMP CHANNELS] Canal de status atualizado para: {status_name}")
                 updated = True
-                # Pausa para evitar rate limit
                 await asyncio.sleep(5)
 
-            # Atualizar o canal de jogadores, verificando se há mudança
-            players_name = f"Jogadores: {player_info.get('online', 0)}/{player_info.get('max', 0)}"
             if players_channel.name != players_name:
                 await players_channel.edit(name=players_name)
                 print(f"[SAMP CHANNELS] Canal de jogadores atualizado para: {players_name}")
                 updated = True
-                # Pausa para evitar rate limit
                 await asyncio.sleep(5)
 
             return updated
@@ -137,7 +154,6 @@ class SampChannels(commands.Cog):
                 print("[SAMP CHANNELS] Canais necessários não encontrados no banco de dados.")
                 return
 
-            # Obter os canais
             status_channel = self.bot.get_channel(status_channel_id[0])
             players_channel = self.bot.get_channel(players_channel_id[0])
 
@@ -145,11 +161,11 @@ class SampChannels(commands.Cog):
                 print("[SAMP CHANNELS] Um ou mais canais não foram encontrados no servidor.")
                 return
 
-            # Atualizar canais para offline
+            # Atualizar os canais para offline
             updated = False
-            if status_channel.name != "Status: Offline":
-                await status_channel.edit(name="Status: Offline")
-                print("[SAMP CHANNELS] Canal de status atualizado para: Offline")
+            if status_channel.name != "Status: 🔴 Offline":
+                await status_channel.edit(name="Status: 🔴 Offline")
+                print("[SAMP CHANNELS] Canal de status atualizado para: 🔴 Offline")
                 updated = True
                 await asyncio.sleep(5)
 
