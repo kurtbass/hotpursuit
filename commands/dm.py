@@ -1,9 +1,8 @@
-from utils.database import get_emoji_from_table, get_fun_emoji, get_music_emoji, get_error_emoji, get_number_emoji, get_clan_management_emoji, get_server_staff_emoji
 from utils.database import get_embed_color
+from utils.config import get_lema
 import discord
 from discord.ext import commands
 import asyncio
-from utils.database import get_config
 import logging
 
 # Configuração de logs
@@ -15,12 +14,13 @@ class DirectMessageCommand(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         self.staff_role_id = self.safe_get_config("TAG_STAFF", is_int=True)
-        self.lema = get_config("LEMA") or "LEMA NÃO CARREGADO, PROCURE O PROGRAMADOR DO BOT"
+        self.lema, self.lema_img, self.nome_cla = get_lema()
         self.default_color = get_embed_color()
 
     def safe_get_config(self, key, is_int=False):
         """Obtém uma configuração do banco de forma segura."""
         try:
+            from utils.config import get_config
             value = get_config(key)
             if not value:
                 logger.warning(f"Configuração '{key}' não encontrada no banco.")
@@ -33,7 +33,7 @@ class DirectMessageCommand(commands.Cog):
     def create_embed(self, title=None, description=None, color=None, image_url=None):
         """Cria um embed padronizado."""
         embed = discord.Embed(title=title, description=description, color=color or self.default_color)
-        embed.set_footer(text=self.lema)
+        embed.set_footer(text=self.lema, icon_url=self.lema_img or None)
         if image_url:
             embed.set_image(url=image_url)
         return embed
@@ -165,7 +165,7 @@ class DirectMessageCommand(commands.Cog):
         elif message_type.lower() == "embed":
             title = await self.safe_ask_question(ctx, "Digite o título da mensagem.")
             description = await self.safe_ask_question(ctx, "Digite o conteúdo da mensagem.")
-            color_input = await self.safe_ask_question(ctx, "Digite a cor do embed (Exemplo: get_embed_color() ou #get_embed_color()).")
+            color_input = await self.safe_ask_question(ctx, "Digite a cor do embed (Exemplo: #123456 ou deixe vazio para usar a padrão).")
 
             include_banner = await self.safe_ask_question(ctx, "Deseja incluir um banner na mensagem? Responda com `sim` ou `não`.")
             banner_url = None

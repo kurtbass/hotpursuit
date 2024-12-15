@@ -1,12 +1,11 @@
-from utils.database import get_emoji_from_table, get_fun_emoji, get_music_emoji, get_error_emoji, get_number_emoji, get_clan_management_emoji, get_server_staff_emoji
 from utils.database import get_embed_color
+from utils.config import get_lema
 import discord
 from discord.ext import commands
 import aiohttp
 from PIL import Image, ImageSequence
 from io import BytesIO
 import logging
-from utils.database import get_config
 
 # Configuração de logs
 logger = logging.getLogger(__name__)
@@ -18,41 +17,39 @@ class AvatarCommand(commands.Cog):
         self.bot = bot
         self.dono_id = None
         self.subdono_id = None
-        self.lema = "LEMA NÃO CARREGADO, PROCURE O PROGRAMADOR DO BOT"
+        self.lema, self.lema_img, self.nome_cla = get_lema()
         self.timeout = 60.0  # Timeout padrão para respostas
 
     @commands.Cog.listener()
     async def on_ready(self):
         """Carrega configurações do banco ao iniciar."""
         try:
+            from utils.config import get_config
             self.dono_id = int(get_config('DONO') or 0)
             self.subdono_id = int(get_config('SUBDONO') or 0)
-            self.lema = get_config('LEMA') or self.lema
+            self.lema, self.lema_img, self.nome_cla = get_lema()
+            logger.info("Configurações de dono, lema e clã carregadas com sucesso.")
         except Exception as e:
-            logger.error(f"Erro ao carregar configurações: {e}")
+            logger.error(f"Erro ao carregar configurações iniciais: {e}")
 
     @commands.command(name="avatar")
     async def avatar(self, ctx):
-        """Solicita imagem e troca o avatar do bot."""
+        """
+        Comando que solicita uma imagem ou URL e altera o avatar do bot.
+        """
+        logger.info(f"Usuário {ctx.author} iniciou o comando de alteração de avatar.")
+
         # Verificar permissões
         if ctx.author.id not in [self.dono_id, self.subdono_id]:
-            embed = discord.Embed(
-                title="❌ Permissão Negada",
-                description="Você não tem permissão para alterar o avatar do bot.",
-                color=get_embed_color()
+            await self.send_embed(
+                ctx, "❌ Permissão Negada", "Você não tem permissão para alterar o avatar do bot."
             )
-            embed.set_footer(text=self.lema)
-            await ctx.send(embed=embed)
             return
 
         # Solicitar entrada do usuário
-        embed = discord.Embed(
-            title="🖼️ Atualizar Avatar",
-            description="Envie o arquivo da imagem ou um link válido.",
-            color=get_embed_color()
+        await self.send_embed(
+            ctx, "🖼️ Atualizar Avatar", "Envie o arquivo da imagem ou um link válido."
         )
-        embed.set_footer(text=self.lema)
-        await ctx.send(embed=embed)
 
         def check(m):
             return m.author == ctx.author and m.channel == ctx.channel
@@ -60,74 +57,102 @@ class AvatarCommand(commands.Cog):
         try:
             # Esperar a mensagem do usuário
             message = await self.bot.wait_for("message", check=check, timeout=self.timeout)
+            logger.info(f"Mensagem recebida de {ctx.author}: {message.content}")
 
             # Processar a entrada do usuário
-            if message.attachments:
-                # Usuário enviou uma imagem como arquivo
-                file = message.attachments[0]
-                image_data = await file.read()
-            elif message.content.startswith('http'):
-                # Usuário forneceu um link
-                image_data = await self.download_image(message.content)
-            else:
-                raise ValueError("Entrada inválida. Nenhum arquivo ou link válido fornecido.")
+            image_data = await self.get_image_data(message)
 
             # Processar e definir o avatar
             buffer = await self.process_image(image_data)
             await self.bot.user.edit(avatar=buffer.read())
 
-            embed = discord.Embed(
-                title="✅ Avatar Atualizado",
-                description="A imagem de perfil do bot foi alterada com sucesso!",
-                color=get_embed_color()
+            await self.send_embed(
+                ctx, "✅ Avatar Atualizado", "A imagem de perfil do bot foi alterada com sucesso!"
             )
-            embed.set_footer(text=self.lema)
-            await ctx.send(embed=embed)
+            logger.info("Avatar atualizado com sucesso.")
 
-        except discord.HTTPException:
-            embed = discord.Embed(
-                title="❌ Erro no Avatar",
-                description="Erro ao alterar o avatar. Certifique-se de que a imagem atende aos requisitos de tamanho e formato.",
-                color=get_embed_color()
+        except discord.HTTPException as e:
+            logger.error(f"Erro do Discord ao alterar o avatar: {e}")
+            await self.send_embed(
+                ctx,
+                "❌ Erro no Avatar",
+                "Erro ao alterar o avatar. Certifique-se de que a imagem atende aos requisitos de tamanho e formato.",
             )
-            embed.set_footer(text=self.lema)
-            await ctx.send(embed=embed)
         except Exception as e:
             logger.error(f"Erro inesperado ao alterar o avatar: {e}")
-            embed = discord.Embed(
-                title="❌ Erro Inesperado",
-                description="Ocorreu um erro inesperado ao tentar alterar o avatar. Tente novamente mais tarde.",
-                color=get_embed_color()
+            await self.send_embed(
+                ctx,
+                "❌ Erro Inesperado",
+                "Ocorreu um erro inesperado ao tentar alterar o avatar. Tente novamente mais tarde.",
             )
-            embed.set_footer(text=self.lema)
-            await ctx.send(embed=embed)
+
+    async def get_image_data(self, message):
+        """
+        Processa a entrada do usuário para obter os dados de uma imagem.
+        """
+        if message.attachments:
+            logger.info("Imagem recebida como anexo.")
+            file = message.attachments[0]
+            return await file.read()
+        elif message.content.startswith('http'):
+            logger.info("Imagem recebida como URL.")
+            return await self.download_image(message.content)
+        else:
+            logger.warning("Entrada inválida fornecida.")
+            raise ValueError("Entrada inválida. Nenhum arquivo ou link válido fornecido.")
 
     async def download_image(self, url):
-        """Baixa uma imagem de uma URL."""
+        """
+        Baixa uma imagem de uma URL fornecida pelo usuário.
+        """
         async with aiohttp.ClientSession() as session:
             async with session.get(url) as response:
                 if response.status != 200:
+                    logger.warning(f"Não foi possível baixar a imagem. Código HTTP: {response.status}")
                     raise ValueError("Não foi possível baixar a imagem. Verifique o link fornecido.")
+                logger.info("Imagem baixada com sucesso.")
                 return await response.read()
 
     async def process_image(self, image_data):
-        """Processa uma imagem, incluindo extração do primeiro frame de GIFs."""
-        image = Image.open(BytesIO(image_data)).convert('RGB')
+        """
+        Processa uma imagem, incluindo extração do primeiro frame de GIFs.
+        """
+        try:
+            image = Image.open(BytesIO(image_data)).convert('RGB')
 
-        # Verificar se a imagem é um GIF (multiframe)
-        if getattr(image, "is_animated", False):
-            logger.info("Imagem é um GIF. Extraindo o primeiro frame.")
-            image = next(ImageSequence.Iterator(image))  # Extrair o primeiro frame
+            # Verificar se a imagem é um GIF (multiframe)
+            if getattr(image, "is_animated", False):
+                logger.info("Imagem é um GIF. Extraindo o primeiro frame.")
+                image = next(ImageSequence.Iterator(image))
 
-        # Redimensionar se necessário
-        max_size = 1024  # Tamanho máximo permitido
-        if image.width > max_size or image.height > max_size:
-            image.thumbnail((max_size, max_size))  # Redimensionar imagem
+            # Redimensionar se necessário
+            max_size = 1024  # Tamanho máximo permitido
+            if image.width > max_size or image.height > max_size:
+                image.thumbnail((max_size, max_size))
+                logger.info(f"Imagem redimensionada para {max_size}x{max_size}.")
 
-        buffer = BytesIO()
-        image.save(buffer, format='PNG')
-        buffer.seek(0)
-        return buffer
+            buffer = BytesIO()
+            image.save(buffer, format='PNG')
+            buffer.seek(0)
+            return buffer
+        except Exception as e:
+            logger.error(f"Erro ao processar a imagem: {e}")
+            raise ValueError("Erro ao processar a imagem. Certifique-se de que o formato é compatível.")
+
+    async def send_embed(self, ctx, title, description):
+        """
+        Envia um embed para o usuário, incluindo o lema e, se disponível, a imagem do lema no rodapé.
+        """
+        embed = discord.Embed(
+            title=title,
+            description=description,
+            color=get_embed_color()
+        )
+        footer_text = self.lema
+        if self.lema_img:
+            footer_text += f" | {self.lema_img}"
+        embed.set_footer(text=footer_text)
+        await ctx.send(embed=embed)
 
 
 async def setup(bot):

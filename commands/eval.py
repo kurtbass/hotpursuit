@@ -19,7 +19,12 @@ class Eval(commands.Cog):
         # Verificar se o autor é o dono
         dono_id = fetchone("SELECT value FROM configs WHERE key = ?", ("DONO",))
         if not dono_id or str(ctx.author.id) != dono_id[0]:
-            await ctx.send("❌ **Apenas o dono do bot pode usar este comando.**")
+            embed = discord.Embed(
+                title="🔒 Acesso Negado",
+                description="Apenas o dono do bot pode usar este comando.",
+                color=discord.Color.red()
+            )
+            await ctx.send(embed=embed)
             return
 
         # Remover as crases do código (```python ... ```)
@@ -41,6 +46,12 @@ class Eval(commands.Cog):
         stdout = io.StringIO()
         result = None
 
+        # Adicionar reação de carregamento
+        try:
+            await ctx.message.add_reaction("⏳")
+        except discord.HTTPException:
+            pass
+
         try:
             with redirect_stdout(stdout):
                 # Avalia o código
@@ -51,20 +62,47 @@ class Eval(commands.Cog):
                 result = await env['__eval']()
         except Exception as e:
             # Captura erros e os exibe no Discord
-            error = traceback.format_exception(type(e), e, e.__traceback__)
-            await ctx.send(f"\u274C **Erro:**\n```{''.join(error)}```")
+            error = "".join(traceback.format_exception(type(e), e, e.__traceback__))
+            embed = discord.Embed(
+                title="❌ Erro de Execução",
+                description=f"```{error[:2000]}```",  # Limitar a saída a 2000 caracteres
+                color=discord.Color.red()
+            )
+            await ctx.send(embed=embed)
             return
 
         # Retorna a saída do código
         output = stdout.getvalue()
         if result is None:
-            if output:
-                await ctx.send(f"\u2705 **Resultado:**\n```{output}```")
+            if output.strip():
+                embed = discord.Embed(
+                    title="✅ Resultado",
+                    description=f"```{output[:2000]}```",  # Limitar a saída a 2000 caracteres
+                    color=discord.Color.green()
+                )
+                await ctx.send(embed=embed)
             else:
-                await ctx.send("\u2705 **Executado com sucesso, sem saída.**")
+                embed = discord.Embed(
+                    title="✅ Executado com Sucesso",
+                    description="Nenhuma saída gerada.",
+                    color=discord.Color.green()
+                )
+                await ctx.send(embed=embed)
         else:
-            await ctx.send(f"\u2705 **Resultado:**\n```{output}{result}```")
+            embed = discord.Embed(
+                title="✅ Resultado",
+                description=f"```{output}{result}```"[:2000],  # Limitar a saída combinada
+                color=discord.Color.green()
+            )
+            await ctx.send(embed=embed)
 
-# Adicionar o cog ao bot
+        # Remover reação de carregamento
+        try:
+            await ctx.message.remove_reaction("⏳", self.bot.user)
+        except discord.HTTPException:
+            pass
+
+
 async def setup(bot):
+    """Adiciona o cog ao bot."""
     await bot.add_cog(Eval(bot))

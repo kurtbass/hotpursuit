@@ -1,9 +1,7 @@
-from utils.database import get_emoji_from_table, get_fun_emoji, get_music_emoji, get_error_emoji, get_number_emoji, get_clan_management_emoji, get_server_staff_emoji
-from utils.database import get_embed_color
+from utils.database import get_embed_color, get_config
 import discord
 from discord.ext import commands
 import logging
-from utils.database import get_config
 from commands.evento.perguntas import PerguntasHelper  # type: ignore
 from commands.evento.permissoes import PermissoesHelper  # type: ignore
 from commands.evento.logicadeenvio import LogicaEnvioHelper  # type: ignore
@@ -26,7 +24,7 @@ class Evento(commands.Cog):
         self.permissoes_helper = PermissoesHelper(bot, self.tag_staff, self.tag_membro, self.lema)
         self.logicadeenvio_helper = LogicaEnvioHelper(bot, self.lema)
 
-    def safe_get_config(self, key, is_int=False):
+    def safe_get_config(self, key: str, is_int: bool = False):
         """
         Obtém uma configuração do banco de forma segura.
 
@@ -45,22 +43,33 @@ class Evento(commands.Cog):
             return None
 
     @commands.command(name="evento")
-    async def evento(self, ctx):
-        """Comando principal para criar e enviar um evento."""
+    async def evento(self, ctx: commands.Context):
+        """
+        Comando principal para criar e enviar um evento.
+
+        Este comando guia o usuário pelo processo de criação, visualização e envio de eventos no servidor.
+        """
         if self.em_execucao:
             await ctx.send(embed=self.perguntas_helper.create_embed(
-                "Erro", "⚠️ Já existe um evento em execução. Aguarde até que finalize.", get_embed_color()
+                "Erro",
+                "⚠️ Já existe um evento em execução. Aguarde até que finalize.",
+                get_embed_color()
             ))
             return
 
         if not await self.permissoes_helper.check_permissions(ctx):
             return
 
-        self.em_execucao = True
+        self.em_execucao = True  # Define o comando como em execução
         try:
             # Coletar informações do evento
             event_data = await self.perguntas_helper.collect_event_details(ctx)
             if not event_data:
+                await ctx.send(embed=self.perguntas_helper.create_embed(
+                    "Cancelado",
+                    "⚠️ Cancelando o comando. Informações incompletas ou inválidas.",
+                    get_embed_color()
+                ))
                 return  # Comando cancelado ou falhou
 
             # Criar embed do evento
@@ -77,7 +86,9 @@ class Evento(commands.Cog):
             # Confirmar envio
             if not await self.perguntas_helper.confirm_action(ctx, "A mensagem está correta?"):
                 await ctx.send(embed=self.perguntas_helper.create_embed(
-                    "Cancelado", "⚠️ Cancelando o comando. Corrija as informações e tente novamente.", get_embed_color()
+                    "Cancelado",
+                    "⚠️ Cancelando o comando. Corrija as informações e tente novamente.",
+                    get_embed_color()
                 ))
                 return
 
@@ -85,19 +96,33 @@ class Evento(commands.Cog):
             destinatarios = await self.logicadeenvio_helper.select_recipients(ctx, self.tag_staff, self.tag_membro)
             if not destinatarios:
                 await ctx.send(embed=self.perguntas_helper.create_embed(
-                    "Cancelado", "⚠️ Nenhum destinatário foi selecionado. Comando cancelado.", get_embed_color()
+                    "Cancelado",
+                    "⚠️ Nenhum destinatário foi selecionado. Comando cancelado.",
+                    get_embed_color()
                 ))
                 return
 
             # Enviar evento
             enviadas, erros = await self.logicadeenvio_helper.send_event(destinatarios, embed)
             await ctx.send(embed=self.perguntas_helper.create_embed(
-                "Sucesso", f"✅ Evento enviado para {enviadas} membros. Erros: {erros}.", get_embed_color()
+                "Sucesso",
+                f"✅ Evento enviado para {enviadas} membros. Erros: {erros}.",
+                get_embed_color()
+            ))
+        except Exception as e:
+            logger.error(f"Erro inesperado durante o comando de evento: {e}")
+            await ctx.send(embed=self.perguntas_helper.create_embed(
+                "Erro",
+                "⚠️ Ocorreu um erro inesperado durante o comando de evento. Tente novamente mais tarde.",
+                get_embed_color()
             ))
         finally:
-            self.em_execucao = False
+            self.em_execucao = False  # Redefine o estado do comando mesmo em caso de erro
 
+async def setup(bot: commands.Bot):
+    """
+    Função para carregar o cog no bot.
 
-async def setup(bot):
-    """Carrega o cog no bot."""
+    :param bot: Instância do bot.
+    """
     await bot.add_cog(Evento(bot))

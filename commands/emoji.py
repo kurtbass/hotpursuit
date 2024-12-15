@@ -1,9 +1,13 @@
-from utils.database import get_emoji_from_table, get_fun_emoji, get_music_emoji, get_error_emoji, get_number_emoji, get_clan_management_emoji, get_server_staff_emoji
+from utils.database import get_config
+from utils.database import get_embed_color
 import discord
 from discord.ext import commands
-from utils.database import get_config
 import io
 import requests
+import logging
+
+# Configuração de logs
+logger = logging.getLogger(__name__)
 
 class EmojiCommand(commands.Cog):
     """
@@ -12,6 +16,10 @@ class EmojiCommand(commands.Cog):
 
     def __init__(self, bot):
         self.bot = bot
+        self.allowed_server_id = int(get_config("EMOJI_SERVER_ID") or 0)
+        self.owner_id = int(get_config("DONO") or 0)
+        self.default_color = get_embed_color()
+        self.lema, self.lema_img, _ = get_config("LEMA"), get_config("LEMA_IMG"), get_config("NOME_DO_CLA")
 
     @commands.command(name="emoji")
     async def emoji(self, ctx, action: str = None, name: str = None):
@@ -19,21 +27,37 @@ class EmojiCommand(commands.Cog):
         Adiciona ou substitui emojis no servidor.
         Uso: hp!emoji add <nome_do_emoji>
         """
-        # Verifica se o comando está sendo usado no servidor correto
-        allowed_server_id = 1315754008136384572
-        if ctx.guild.id != allowed_server_id:
-            await ctx.send("Este comando só pode ser usado no servidor autorizado.")
+        # Verifica se o comando está sendo usado no servidor autorizado
+        if ctx.guild.id != self.allowed_server_id:
+            embed = discord.Embed(
+                title="🔒 Servidor Não Autorizado",
+                description="Este comando só pode ser usado no servidor autorizado.",
+                color=discord.Color.red()
+            )
+            embed.set_footer(text=self.lema, icon_url=self.lema_img)
+            await ctx.send(embed=embed)
             return
 
         # Verifica se o usuário é o dono
-        owner_id = int(get_config("DONO"))
-        if ctx.author.id != owner_id:
-            await ctx.send("Apenas o dono do bot pode usar este comando.")
+        if ctx.author.id != self.owner_id:
+            embed = discord.Embed(
+                title="🔒 Permissão Negada",
+                description="Apenas o dono do bot pode usar este comando.",
+                color=discord.Color.red()
+            )
+            embed.set_footer(text=self.lema, icon_url=self.lema_img)
+            await ctx.send(embed=embed)
             return
 
         # Valida a ação e o nome do emoji
         if action not in ["add", "replace"] or not name:
-            await ctx.send("Uso inválido. Exemplo: `hp!emoji add <nome_do_emoji>`.")
+            embed = discord.Embed(
+                title="❌ Uso Incorreto",
+                description="Uso correto: `hp!emoji <add|replace> <nome_do_emoji>`.",
+                color=discord.Color.red()
+            )
+            embed.set_footer(text=self.lema, icon_url=self.lema_img)
+            await ctx.send(embed=embed)
             return
 
         # Verifica se há anexos ou links
@@ -42,7 +66,13 @@ class EmojiCommand(commands.Cog):
         elif ctx.message.content.split()[-1].startswith("http"):
             file_url = ctx.message.content.split()[-1]
         else:
-            await ctx.send("Nenhum anexo ou link foi encontrado. Por favor, envie a imagem do emoji.")
+            embed = discord.Embed(
+                title="❌ Nenhuma Imagem Encontrada",
+                description="Por favor, envie a imagem do emoji como anexo ou forneça um link válido.",
+                color=discord.Color.red()
+            )
+            embed.set_footer(text=self.lema, icon_url=self.lema_img)
+            await ctx.send(embed=embed)
             return
 
         try:
@@ -55,21 +85,73 @@ class EmojiCommand(commands.Cog):
             existing_emoji = discord.utils.get(ctx.guild.emojis, name=name)
             if existing_emoji:
                 await existing_emoji.delete()
-                await ctx.send(f"O emoji existente `{name}` foi removido.")
+                logger.info(f"Emoji existente '{name}' foi removido por {ctx.author}.")
+                await ctx.send(embed=discord.Embed(
+                    description=f"Emoji existente `{name}` foi removido.",
+                    color=self.default_color
+                ).set_footer(text=self.lema, icon_url=self.lema_img))
 
             # Adiciona o novo emoji
             is_gif = file_url.lower().endswith(".gif")
+            if is_gif and not ctx.guild.premium_tier:
+                raise ValueError("Servidores sem boost não suportam emojis animados (GIFs).")
+
             new_emoji = await ctx.guild.create_custom_emoji(name=name, image=image_data.read(), roles=None)
-            await ctx.send(f"Emoji {'animado' if is_gif else 'estático'} `{name}` adicionado com sucesso: {new_emoji}")
+            logger.info(f"Emoji '{name}' foi adicionado com sucesso por {ctx.author}.")
+            embed = discord.Embed(
+                title="✅ Emoji Adicionado",
+                description=f"Emoji {'animado' if is_gif else 'estático'} `{name}` adicionado com sucesso: {new_emoji}",
+                color=self.default_color
+            )
+            embed.set_footer(text=self.lema, icon_url=self.lema_img)
+            await ctx.send(embed=embed)
 
         except discord.Forbidden:
-            await ctx.send("Permissões insuficientes para adicionar emojis ao servidor.")
+            logger.error("Permissões insuficientes para adicionar emojis.")
+            embed = discord.Embed(
+                title="❌ Permissão Insuficiente",
+                description="Não tenho permissões suficientes para adicionar emojis ao servidor.",
+                color=discord.Color.red()
+            )
+            embed.set_footer(text=self.lema, icon_url=self.lema_img)
+            await ctx.send(embed=embed)
         except requests.exceptions.RequestException as e:
-            await ctx.send(f"Erro ao baixar a imagem: {e}")
+            logger.error(f"Erro ao baixar a imagem: {e}")
+            embed = discord.Embed(
+                title="❌ Erro ao Baixar Imagem",
+                description=f"Não foi possível baixar a imagem do link fornecido. Erro: {e}",
+                color=discord.Color.red()
+            )
+            embed.set_footer(text=self.lema, icon_url=self.lema_img)
+            await ctx.send(embed=embed)
         except discord.HTTPException as e:
-            await ctx.send(f"Erro ao criar o emoji: {e}")
+            logger.error(f"Erro ao criar o emoji: {e}")
+            embed = discord.Embed(
+                title="❌ Erro ao Criar Emoji",
+                description=f"Ocorreu um erro ao criar o emoji. Detalhes: {e}",
+                color=discord.Color.red()
+            )
+            embed.set_footer(text=self.lema, icon_url=self.lema_img)
+            await ctx.send(embed=embed)
+        except ValueError as e:
+            logger.warning(f"Erro de validação: {e}")
+            embed = discord.Embed(
+                title="❌ Requisito Não Atendido",
+                description=str(e),
+                color=discord.Color.red()
+            )
+            embed.set_footer(text=self.lema, icon_url=self.lema_img)
+            await ctx.send(embed=embed)
         except Exception as e:
-            await ctx.send(f"Ocorreu um erro inesperado: {e}")
+            logger.error(f"Erro inesperado: {e}")
+            embed = discord.Embed(
+                title="❌ Erro Inesperado",
+                description="Ocorreu um erro inesperado ao tentar adicionar o emoji.",
+                color=discord.Color.red()
+            )
+            embed.set_footer(text=self.lema, icon_url=self.lema_img)
+            await ctx.send(embed=embed)
+
 
 async def setup(bot):
     """

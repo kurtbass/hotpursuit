@@ -1,13 +1,15 @@
+import asyncio
 import socket
 import struct
-import asyncio
+import logging
 import discord
 from discord.ext import commands
 from utils.database import fetchone
 
+logger = logging.getLogger(__name__)
 
 class SampListener(commands.Cog):
-    def __init__(self, bot):
+    def __init__(self, bot: commands.Bot):
         """
         Inicializa o cog SampListener.
         """
@@ -25,15 +27,17 @@ class SampListener(commands.Cog):
         """
         Listener ativado quando o bot está pronto.
         """
-        print("[SAMP LISTENER] Cog SampListener está pronto para uso.")
+        logger.info("[SAMP LISTENER] Cog SampListener está pronto para uso.")
 
-    async def fetch_server_info(self):
+    async def fetch_server_info(self) -> bool:
         """
-        Obtém informações do servidor SA-MP sob demanda, com até 10 tentativas antes de marcar como offline.
+        Obtém informações do servidor SA-MP sob demanda.
+        Realiza até `max_attempts` antes de marcar como offline.
         """
         for attempt in range(1, self.max_attempts + 1):
             try:
-                print(f"[SAMP LISTENER] Tentativa {attempt} de {self.max_attempts} para obter informações do servidor...")
+                logger.info(f"[SAMP LISTENER] Tentativa {attempt}/{self.max_attempts} para obter informações do servidor...")
+
                 if self.samp_query.is_online():
                     info = self.samp_query.get_info()
                     if info:
@@ -47,37 +51,37 @@ class SampListener(commands.Cog):
                             "online": info["players"],
                             "max": info["maxplayers"]
                         }
-                        print("[SAMP LISTENER] Informações do servidor obtidas com sucesso.")
+                        logger.info("[SAMP LISTENER] Informações do servidor obtidas com sucesso.")
                         self.status = "on"
                         return True
                 else:
-                    print("[SAMP LISTENER] Servidor SA-MP está inacessível. Tentando novamente...")
+                    logger.warning("[SAMP LISTENER] Servidor SA-MP está inacessível. Tentando novamente...")
             except Exception as e:
-                print(f"[SAMP LISTENER] Erro ao tentar acessar o servidor: {e}")
+                logger.error(f"[SAMP LISTENER] Erro ao tentar acessar o servidor: {e}")
 
             # Aguarda antes da próxima tentativa
             await asyncio.sleep(5)
 
         # Se todas as tentativas falharem
-        print("[SAMP LISTENER] Não foi possível acessar o servidor após várias tentativas.")
+        logger.error("[SAMP LISTENER] Não foi possível acessar o servidor após várias tentativas.")
         self.server_info = None
         self.players = {"online": 0, "max": 0}
         self.status = "off"
         return False
 
-    def get_status(self):
+    def get_status(self) -> str:
         """
         Retorna o status atual do listener.
         """
         return self.status
 
-    def get_server_info(self):
+    def get_server_info(self) -> dict:
         """
         Retorna as informações do servidor armazenadas na memória.
         """
         return self.server_info
 
-    def get_player_info(self):
+    def get_player_info(self) -> dict:
         """
         Retorna as informações dos jogadores armazenadas na memória.
         """
@@ -85,13 +89,16 @@ class SampListener(commands.Cog):
 
 
 class SampQueryAPI:
-    def __init__(self, ip, port):
+    def __init__(self, ip: str, port: int):
+        """
+        Inicializa a API de consulta ao servidor SA-MP.
+        """
         self.ip = ip
         self.port = port
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.socket.settimeout(10)  # Tempo limite para a conexão
 
-    def is_online(self):
+    def is_online(self) -> bool:
         """
         Verifica se o servidor está online.
         """
@@ -100,10 +107,10 @@ class SampQueryAPI:
             data, _ = self.socket.recvfrom(4096)
             return data.startswith(b"SAMP")
         except Exception as e:
-            print(f"[SAMPQueryAPI] Erro ao conectar: {e}")
+            logger.warning(f"[SAMPQueryAPI] Erro ao verificar servidor online: {e}")
             return False
 
-    def get_info(self):
+    def get_info(self) -> dict:
         """
         Obtém informações detalhadas do servidor.
         """
@@ -112,10 +119,10 @@ class SampQueryAPI:
             data, _ = self.socket.recvfrom(4096)
             return self._parse_info(data)
         except Exception as e:
-            print(f"[SAMPQueryAPI] Erro ao buscar informações: {e}")
+            logger.error(f"[SAMPQueryAPI] Erro ao buscar informações do servidor: {e}")
             return None
 
-    def _build_packet(self, payload):
+    def _build_packet(self, payload: str) -> bytes:
         """
         Constrói o pacote de consulta para o servidor SA-MP.
         """
@@ -124,7 +131,7 @@ class SampQueryAPI:
         port_high = (self.port >> 8) & 0xFF
         return b"SAMP" + bytes(ip_parts) + bytes([port_low, port_high]) + payload.encode()
 
-    def _parse_info(self, data):
+    def _parse_info(self, data: bytes) -> dict:
         """
         Analisa os dados recebidos do servidor.
         """
@@ -156,9 +163,12 @@ class SampQueryAPI:
                 "mapname": mapname,
             }
         except Exception as e:
-            print(f"[SAMPQueryAPI] Erro ao analisar dados: {e}")
+            logger.error(f"[SAMPQueryAPI] Erro ao analisar dados do servidor: {e}")
             return None
 
 
-async def setup(bot):
+async def setup(bot: commands.Bot):
+    """
+    Adiciona o cog SampListener ao bot.
+    """
     await bot.add_cog(SampListener(bot))
